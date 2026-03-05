@@ -11,7 +11,7 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx) {
 
     std::cout << "    pushq %rbp\n";
     std::cout << "    movq %rsp, %rbp\n";
-    std::cout << "    subq $1600, %rsp\n";
+    // std::cout << "    subq $160, %rsp\n";
     visitChildren(ctx);
     
     return 0;

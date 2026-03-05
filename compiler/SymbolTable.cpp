@@ -8,14 +8,14 @@ SymbolTable::~SymbolTable() {
 }
 
 void SymbolTable::addVariable(const std::string &name) {
-    symbolTable[name] = {varOffset, false}; // Store the current offset and mark as unused
     varOffset -= 4; // Decrement offset for the next variable
+    symbolTable[name] = {varOffset, false}; // Store the current offset and mark as unused
 }
 
 const std::string SymbolTable::addTemporaryVariable() {
+    tmpOffset -= 4; // Decrement offset for the next temporary variable
     std::string tmpName = "tmp" + std::to_string(tmpOffset); // Create a unique name for the temporary variable
     symbolTable[tmpName] = {tmpOffset, false}; // Store the current offset and mark as unused
-    tmpOffset -= 4; // Decrement offset for the next temporary variable
     return tmpName; // Return the name of the temporary variable
 }
 
