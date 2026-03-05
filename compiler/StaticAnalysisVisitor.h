@@ -2,22 +2,20 @@
 
 #include "antlr4-runtime.h"
 #include "generated/ifccBaseVisitor.h"
-#include <map>
-#include <string>
+#include "SymbolTable.h"
 #include <iostream>
-
-// Structure to store variable metadata
-struct VarInfo {
-	int index;	// Memory offset (multiple of 4)
-	bool used;	// Whether the variable is read in an expression
-};
 
 class StaticAnalysisVisitor : public ifccBaseVisitor {
 	public:
-		std::map<std::string, VarInfo> symbolTable;
+		SymbolTable *symbolTable;
 
 		int currIndex = 0;
 		bool hasError = false;
+
+		StaticAnalysisVisitor(SymbolTable *table) {
+			symbolTable = table;
+		};
+		~StaticAnalysisVisitor() = default;
 
 		virtual std::any visitProg(ifccParser::ProgContext *ctx) override;
 		virtual std::any visitDeclareStatement(ifccParser::DeclareStatementContext *ctx) override;

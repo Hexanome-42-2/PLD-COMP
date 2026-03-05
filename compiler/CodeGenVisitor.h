@@ -4,14 +4,17 @@
 #include "antlr4-runtime.h"
 #include "generated/ifccBaseVisitor.h"
 #include "StaticAnalysisVisitor.h"
+#include "SymbolTable.h"
 #include <map>
 #include <string>
 
 class  CodeGenVisitor : public ifccBaseVisitor {
 	public:
-		std::map<std::string, VarInfo> symbolTable;
+		SymbolTable *symbolTable;
 		
-		CodeGenVisitor(std::map<std::string, VarInfo> st) : symbolTable(st) {};
+		CodeGenVisitor(SymbolTable *table) {
+			symbolTable = table;
+		};
 
 		virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override ;
 		virtual antlrcpp::Any visitDeclareStatement(ifccParser::DeclareStatementContext *ctx) override;
@@ -21,5 +24,8 @@ class  CodeGenVisitor : public ifccBaseVisitor {
 		// Expressions
 		virtual antlrcpp::Any visitConstExpr(ifccParser::ConstExprContext *ctx) override;
 		virtual antlrcpp::Any visitVarExpr(ifccParser::VarExprContext *ctx) override;
+		virtual antlrcpp::Any visitAdd(ifccParser::AddContext *ctx) override;
+		virtual antlrcpp::Any visitMult(ifccParser::MultContext *ctx) override;
+		virtual antlrcpp::Any visitPar(ifccParser::ParContext *ctx) override;
 };
 

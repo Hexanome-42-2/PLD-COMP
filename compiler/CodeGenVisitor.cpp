@@ -11,6 +11,7 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx) {
 
     std::cout << "    pushq %rbp\n";
     std::cout << "    movq %rsp, %rbp\n";
+    std::cout << "    subq $1600, %rsp\n";
     visitChildren(ctx);
     
     return 0;
@@ -24,7 +25,7 @@ antlrcpp::Any CodeGenVisitor::visitDeclareStatement(ifccParser::DeclareStatement
 
 		// Find the variable in memory
 		std::string varName = ctx->VAR()->getText();
-		int offset = symbolTable[varName].index;
+		int offset = symbolTable->getVariableOffset(varName); // Get the variable's memory offset
 
 		// Move the value from %eax into the variable's memory space
 		std::cout << "    movl %eax, " << offset << "(%rbp)\n";
@@ -37,7 +38,7 @@ antlrcpp::Any CodeGenVisitor::visitAssignStatement(ifccParser::AssignStatementCo
 	visit(ctx->expr());
 	
 	std::string varName = ctx->VAR()->getText();
-	int offset = symbolTable[varName].index;
+	int offset = symbolTable->getVariableOffset(varName);
 
 	std::cout << "    movl %eax, " << offset << "(%rbp)\n";
 	return 0;
@@ -57,13 +58,37 @@ antlrcpp::Any CodeGenVisitor::visitReturnStatement(ifccParser::ReturnStatementCo
 antlrcpp::Any CodeGenVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx) {
 	std::string val = ctx->CONST()->getText();
 	std::cout << "    movl $" << val << ", %eax\n";
+	// place in memory before returning
 	return 0;
 }
 
 antlrcpp::Any CodeGenVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
 	std::string varName = ctx->VAR()->getText();
-	int offset = symbolTable[varName].index;
+	int offset = symbolTable->getVariableOffset(varName);
 
 	std::cout << "    movl " << offset << "(%rbp), %eax\n";
+	return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitAdd(ifccParser::AddContext *ctx) { 
+	visit(ctx->lExpr);	
+	std::cout << "    movl %eax, %edx\n";
+
+	visit(ctx->rExpr);
+	std::cout << "    addl %edx, %eax\n";	
+	return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitMult(ifccParser::MultContext *ctx) { 
+	visit(ctx->lExpr);	
+	std::cout << "    movl %eax, %edx\n";
+
+	visit(ctx->rExpr);
+	std::cout << "    imull %edx, %eax\n";	
+	return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitPar(ifccParser::ParContext *ctx) {
+	visit(ctx->expr());
 	return 0;
 }

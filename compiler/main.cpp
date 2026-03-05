@@ -8,6 +8,7 @@
 #include "generated/ifccParser.h"
 #include "generated/ifccBaseVisitor.h"
 
+#include "SymbolTable.h"
 #include "CodeGenVisitor.h"
 #include "StaticAnalysisVisitor.h"
 
@@ -48,7 +49,8 @@ int main(int argn, const char **argv) {
 		exit(1);
 	}
 
-	StaticAnalysisVisitor staticAnalysis;
+	SymbolTable symbolTable;
+	StaticAnalysisVisitor staticAnalysis(&symbolTable);
 	staticAnalysis.visit(tree);
 
 	if (staticAnalysis.hasError) {
@@ -56,7 +58,7 @@ int main(int argn, const char **argv) {
 		return 1;
 	}
 
-	CodeGenVisitor codeGen(staticAnalysis.symbolTable);
+	CodeGenVisitor codeGen(&symbolTable);
 	codeGen.visit(tree);
 
 	return 0;
