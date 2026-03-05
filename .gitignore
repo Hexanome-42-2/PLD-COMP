@@ -39,3 +39,10 @@
 
 # debug information files
 *.dwo
+
+# Antlr4
+*.mk
+build/
+generated/
+ifcc
+ifcc-test-output/
