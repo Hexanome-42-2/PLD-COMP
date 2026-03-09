@@ -18,18 +18,19 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx) {
 }
 
 antlrcpp::Any CodeGenVisitor::visitDeclareStatement(ifccParser::DeclareStatementContext *ctx) {
+	// ~~~~~~ CAN'T ASSIGN AND DECLARE ATM ~~~~~~
 	// If variable is initialized immediately (e.g., int x = 4;)
-	if (ctx->expr()) {
-		// Visit the expression, putting the result in %eax
-		visit(ctx->expr());
+	// if (ctx->expr()) {
+	// 	// Visit the expression, putting the result in %eax
+	// 	visit(ctx->expr());
 
-		// Find the variable in memory
-		std::string varName = ctx->VAR()->getText();
-		int offset = symbolTable->getVariableOffset(varName); // Get the variable's memory offset
+	// 	// Find the variable in memory
+	// 	std::string varName = ctx->VAR()->getText();
+	// 	int offset = symbolTable->getVariableOffset(varName); // Get the variable's memory offset
 
-		// Move the value from %eax into the variable's memory space
-		std::cout << "    movl %eax, " << offset << "(%rbp)\n";
-	}
+	// 	// Move the value from %eax into the variable's memory space
+	// 	std::cout << "    movl %eax, " << offset << "(%rbp)\n";
+	// }
 	return 0;
 }
 

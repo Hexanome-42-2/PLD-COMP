@@ -9,22 +9,27 @@ std::any StaticAnalysisVisitor::visitProg(ifccParser::ProgContext *ctx) {
 	for (const std::string& varName : unusedVars) {
 		std::cerr << "Warning: Variable '" << varName << "' declared but not used." << std::endl;
 	}
+
+	// Initialize temporary variables' offset in symbol table
+	symbolTable->InitializeTmpOffset();
 	return 0;
 }
 
 std::any StaticAnalysisVisitor::visitDeclareStatement(ifccParser::DeclareStatementContext *ctx) {
-	std::string varName = ctx->VAR()->getText();
+	for ( auto Node : ctx->VAR() ) {
+		std::string varName = Node->getText();
 
-	if (symbolTable->getVariable(varName) != nullptr) {
-		std::cerr << "Error: Variable '" << varName << "' has already been declared." << std::endl;
-		hasError = true;
-	} else {
-		symbolTable->addVariable(varName);
-	}
-	
-	// If it's initialized at the same line (e.g., int x = 4;)
-	if (ctx->expr()) {
-		visit(ctx->expr());
+		if (symbolTable->getVariable(varName) != nullptr) {
+			std::cerr << "Error: Variable '" << varName << "' has already been declared." << std::endl;
+			hasError = true;
+		} else {
+			symbolTable->addVariable(varName);
+		}
+		// ~~~~~~~ CAN'T ASSIGN AND DECLARE ATM ~~~~~~~~
+		// // If it's initialized at the same line (e.g., int x = 4;)
+		// if (->expr()) {
+		// 	visit(ctx->expr());
+		// }
 	}
 	return 0;
 }

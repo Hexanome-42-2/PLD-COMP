@@ -5,9 +5,9 @@ axiom : prog EOF ;
 // 1. '+' allows one or more statements
 prog		: 'int' 'main' '(' ')' '{' statement* return_statement'}' ;
 
-// 2. Defines what a satatement is
-statement	: 'int' VAR ( '=' expr )? ';'	# DeclareStatement
-			| VAR '=' expr ';'				# AssignStatement
+// 2. Defines what a statement is
+statement	: 'int' VAR (',' VAR)* ';'	# DeclareStatement
+			| VAR '=' expr ';'			# AssignStatement
 			;
 
 // 3. Defines what an expression is
@@ -18,7 +18,7 @@ expr	: CONST							# ConstExpr
 		| lExpr=expr '+' rExpr=expr		# Add
 		;
 
-return_statement	: RETURN expr ';'		# ReturnStatement
+return_statement	: RETURN expr ';'	# ReturnStatement
 					;
 
 // ~~~~~~~~~~ LEXER Rules (Tokens) ~~~~~~~~~~ //
