@@ -71,20 +71,24 @@ antlrcpp::Any CodeGenVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
 }
 
 antlrcpp::Any CodeGenVisitor::visitAdd(ifccParser::AddContext *ctx) { 
-	visit(ctx->lExpr);	
-	std::cout << "    movl %eax, %edx\n";
+	visit(ctx->lExpr);
+	const std::string tmpVar = symbolTable->addTemporaryVariable();
+	std::cout << "    movl %eax, " << symbolTable->getVariableOffset(tmpVar) << "(%rbp)\n"; 
 
 	visit(ctx->rExpr);
+	std::cout << "    movl " << symbolTable->getVariableOffset(tmpVar) << "(%rbp), %edx\n";
 	std::cout << "    addl %edx, %eax\n";	
 	return 0;
 }
 
 antlrcpp::Any CodeGenVisitor::visitMult(ifccParser::MultContext *ctx) { 
 	visit(ctx->lExpr);	
-	std::cout << "    movl %eax, %edx\n";
+	const std::string tmpVar = symbolTable->addTemporaryVariable();
+	std::cout << "    movl %eax, " << symbolTable->getVariableOffset(tmpVar) << "(%rbp)\n";
 
 	visit(ctx->rExpr);
-	std::cout << "    imull %edx, %eax\n";	
+	std::cout << "    movl " << symbolTable->getVariableOffset(tmpVar) << "(%rbp), %edx\n";
+	std::cout << "    imull %edx, %eax\n";
 	return 0;
 }
 
