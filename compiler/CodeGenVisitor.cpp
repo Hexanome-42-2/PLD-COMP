@@ -11,9 +11,13 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx) {
 
     std::cout << "    pushq %rbp\n";
     std::cout << "    movq %rsp, %rbp\n";
-    // std::cout << "    subq $160, %rsp\n";
+    std::cout << "    subq $160, %rsp\n";
+
     visitChildren(ctx);
-    
+
+	std::cout << "    movq %rbp, %rsp\n";
+	std::cout << "    popq %rbp\n";
+	std::cout << "    ret \n";
     return 0;
 }
 
@@ -49,12 +53,18 @@ antlrcpp::Any CodeGenVisitor::visitReturnStatement(ifccParser::ReturnStatementCo
 	// Evaluate the result of the expression
 	visit(ctx->expr());
 
-	std::cout << "    popq %rbp\n";
-	std::cout << "    ret \n";
 	return 0;
 }
 
 // ~~~~~~~~ Expressions ~~~~~~~~
+
+antlrcpp::Any CodeGenVisitor::visitUnaryExpr(ifccParser::UnaryExprContext *ctx) {
+	visit(ctx->expr_unary());
+	if (ctx->NEG()) {
+    	std::cout << "    negl %eax\n";
+	}
+	return 0;
+}
 
 antlrcpp::Any CodeGenVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx) {
 	std::string val = ctx->CONST()->getText();
