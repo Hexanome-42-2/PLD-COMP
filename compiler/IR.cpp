@@ -113,7 +113,20 @@ void IRInstr::gen_asm(std::ostream &output) {
         case IRInstr::Operation::mul:
             output << "    imull %edx, %eax\n";
             break;
-            
+        
+        case IRInstr::Operation::div:
+            output << "    movl %eax, %edx\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(params[0]) << ", %eax\n";
+            output << "    divl %edx\n";
+            break;
+
+        case IRInstr::Operation::mod:
+            output << "    movl %eax, %edx\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(params[0]) << ", %eax\n";
+            output << "    divl %edx\n";
+            output << "    movl %edx, %eax\n";
+            break;
+
         case IRInstr::Operation::rmem:
             output << "    movl " << bb->cfg->IR_reg_to_asm(params[1]) << ", %edx\n";
             output << "    movl %edx, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
@@ -127,7 +140,12 @@ void IRInstr::gen_asm(std::ostream &output) {
             //output << "    movl %eax, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
             output << "    negl %eax\n";
             break;
-		
+        
+		case IRInstr::Operation::notl: //FAUUUUUUUX
+            output << "    movl %eax, %edx\n";
+            output << "    xorl $1, %edx\n";
+            output << "    movl %edx, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+            break;
         /*    call, 
 		cmp_eq,
 		cmp_lt,

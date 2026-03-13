@@ -34,8 +34,12 @@ antlrcpp::Any CodeGenVisitor::visitReturnStatement(ifccParser::ReturnStatementCo
 antlrcpp::Any CodeGenVisitor::visitUnaryExpr(ifccParser::UnaryExprContext *ctx) {
 	visit(ctx->expr_unary());
 	if (ctx->NEG()) {
-    	cfg->current_bb->add_IRInstr(IRInstr::Operation::negl, Type::INT, {});
-	}
+        if (ctx->NEG()->getText() == "-") {
+            cfg->current_bb->add_IRInstr(IRInstr::Operation::negl, Type::INT, {});
+        } else if (ctx->NEG()->getText() == "!") {
+            cfg->current_bb->add_IRInstr(IRInstr::Operation::notl, Type::INT, {});
+        }
+    }
 	return 0;
 }
 
@@ -62,18 +66,31 @@ antlrcpp::Any CodeGenVisitor::visitAddSub(ifccParser::AddSubContext *ctx) {
 
 	visit(ctx->rExpr);
 	cfg->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {"edx", tmpVar});
-	cfg->current_bb->add_IRInstr(IRInstr::Operation::add, Type::INT, {"eax", "edx"});
+    if (ctx->ADDOP()->getText() == "+") {
+    	cfg->current_bb->add_IRInstr(IRInstr::Operation::add, Type::INT, {"eax", "edx"});
+    } else if (ctx->ADDOP()->getText() == "-") {
+    	cfg->current_bb->add_IRInstr(IRInstr::Operation::sub, Type::INT, {"eax", "edx"});
+    }
 	return 0;
 }
 
 antlrcpp::Any CodeGenVisitor::visitMultDiv(ifccParser::MultDivContext *ctx) {
-	visit(ctx->lExpr);	
+	visit(ctx->lExpr);
 	const std::string tmpVar = cfg->create_new_tempvar(Type::INT);
 	cfg->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {tmpVar, "eax"});
 
 	visit(ctx->rExpr);
-	cfg->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {"edx", tmpVar});
-	cfg->current_bb->add_IRInstr(IRInstr::Operation::mul, Type::INT, {"eax", "edx"});
+	
+    if (ctx->MULTOP()->getText() == "*") {
+        cfg->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {"edx", tmpVar});
+    	cfg->current_bb->add_IRInstr(IRInstr::Operation::mul, Type::INT, {"eax", "edx"});
+    } else  {
+        if (ctx->MULTOP()->getText() == "/") {
+            cfg->current_bb->add_IRInstr(IRInstr::Operation::div, Type::INT, {tmpVar});
+        } else if (ctx->MULTOP()->getText() == "%") {
+            cfg->current_bb->add_IRInstr(IRInstr::Operation::mod, Type::INT, {tmpVar});
+        }
+    }
 	return 0;
 }
 
