@@ -26,6 +26,7 @@ class IRInstr {
 		mul,
 		rmem,
 		wmem,
+		negl,
 		call, 
 		cmp_eq,
 		cmp_lt,
@@ -34,10 +35,10 @@ class IRInstr {
 
 
 	/**  constructor */
-	IRInstr(BasicBlock* bb_, Operation op, Type t, vector<string> params) : bb(bb_), op(op), t(t), params(std::vector<std::string>());
+	IRInstr(BasicBlock* bb_, Operation op, Type t, std::vector<std::string> params) : bb(bb_), op(op), t(t), params(params) {}
 	
 	/** Actual code generation */
-	void gen_asm(ostream &o); /**< x86 assembly code generation for this IR instruction */
+	void gen_asm(std::ostream &o); /**< x86 assembly code generation for this IR instruction */
 	
  private:
 	BasicBlock* bb; /**< The BB this instruction belongs to, which provides a pointer to the CFG this instruction belong to */
@@ -77,16 +78,18 @@ Possible optimization:
 class BasicBlock {
  public:
 	BasicBlock(CFG* cfg, std::string entry_label) : 
-            exit_true(null_ptr), 
-            exit_false(null_ptr), 
+            exit_true(nullptr), 
+            exit_false(nullptr), 
             label(entry_label), 
             cfg(cfg), 
             instrs(std::vector<IRInstr*>()), 
-            test_var_name(std::string()) ;
+            test_var_name(std::string()) {}
+		
+	~BasicBlock();
 
-    void gen_asm(ostream &o); /**< x86 assembly code generation for this basic block (very simple) */
+    void gen_asm(std::ostream &o); /**< x86 assembly code generation for this basic block (very simple) */
 
-	void add_IRInstr(IRInstr::Operation op, Type t, vector<string> params);
+	void add_IRInstr(IRInstr::Operation op, Type t, std::vector<std::string> params);
 
 	// No encapsulation whatsoever here. Feel free to do better.
 	BasicBlock* exit_true;  /**< pointer to the next basic block, true branch. If nullptr, return from procedure */ 
@@ -113,17 +116,19 @@ class BasicBlock {
 class CFG {
  public:
 	//CFG(DefFonction* ast);
-    CFG(SymbolTable * aSymbolTable) : symbolTable(aSymbolTable), nextBBnumber(0), bbs(std::vector <BasicBlock*>()), current_bb(nullptr);
+    CFG(SymbolTable * aSymbolTable) : symbolTable(aSymbolTable), nextBBnumber(0), bbs(std::vector <BasicBlock*>()), current_bb(nullptr) {}
+
+	~CFG();
 
 	//DefFonction* ast; /**< The AST this CFG comes from */
 	
 	void add_bb(BasicBlock* bb); //
 
 	// x86 code generation: could be encapsulated in a processor class in a retargetable compiler
-	void gen_asm(ostream& o);
+	void gen_asm(std::ostream& o);
 	std::string IR_reg_to_asm(std::string reg); /**< helper method: inputs a IR reg or input variable, returns e.g. "-24(%rbp)" for the proper value of 24 */
-	void gen_asm_prologue(ostream& o);
-	void gen_asm_epilogue(ostream& o);
+	void gen_asm_prologue(std::ostream& o);
+	void gen_asm_epilogue(std::ostream& o);
 
 	// symbol table methods
 	void add_to_symbol_table(std::string name, Type t);

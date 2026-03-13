@@ -4,9 +4,12 @@
 #include <vector>
 #include <iostream>
 
+enum Type {INT, ERROR};
+
 // Structure to store variable metadata
 struct VarInfo {
 	int index;	// Memory offset (multiple of 4)
+    Type type;
 	bool used;	// Whether the variable is read in an expression
 };
 
@@ -15,7 +18,7 @@ class SymbolTable {
         std::unordered_map<std::string, VarInfo> symbolTable;
         int varOffset = 0; // Start at 0 and decrement by 4 for each new variable
         int tmpOffset = 0; // Start at 0 and increment by 4 for each new temporary variable
-        //int maxOffset = 0;
+        int maxOffset = 0;
     public:
         SymbolTable();
         ~SymbolTable();
@@ -23,9 +26,12 @@ class SymbolTable {
         const std::string addTemporaryVariable();
         VarInfo* getVariable(const std::string& name);
         int getVariableOffset(const std::string& name);
+        Type getVariableType(const std::string& name);
+        int getMaxOffset() const;
         bool getUsed(const std::string& name);
         void MarkUsed(const std::string& name);
         void InitializeTmpOffset();
+        void updateMaxOffset();
         std::vector<std::string> getUnusedVariables();
         void printSymbolTable() const; // Optional: For debugging purposes
 };

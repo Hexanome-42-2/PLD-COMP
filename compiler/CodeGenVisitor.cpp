@@ -1,40 +1,13 @@
 #include "CodeGenVisitor.h"
 
 antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx) {
-    #ifdef __APPLE__
-    std::cout << ".globl _main\n" ;
-    std::cout << " _main: \n" ;
-    #else
-    std::cout << ".globl main\n" ;
-    std::cout << " main: \n" ;
-    #endif
-
-    std::cout << "    pushq %rbp\n";
-    std::cout << "    movq %rsp, %rbp\n";
-    std::cout << "    subq $160, %rsp\n";
-
+	cfg->add_bb(new BasicBlock(cfg, cfg->new_BB_name()));
     visitChildren(ctx);
-
-	std::cout << "    movq %rbp, %rsp\n";
-	std::cout << "    popq %rbp\n";
-	std::cout << "    ret \n";
     return 0;
 }
 
-antlrcpp::Any CodeGenVisitor::visitDeclareStatement(ifccParser::DeclareStatementContext *ctx) {
-	// ~~~~~~ CAN'T ASSIGN AND DECLARE ATM ~~~~~~
-	// If variable is initialized immediately (e.g., int x = 4;)
-	// if (ctx->expr()) {
-	// 	// Visit the expression, putting the result in %eax
-	// 	visit(ctx->expr());
-
-	// 	// Find the variable in memory
-	// 	std::string varName = ctx->VAR()->getText();
-	// 	int offset = symbolTable->getVariableOffset(varName); // Get the variable's memory offset
-
-	// 	// Move the value from %eax into the variable's memory space
-	// 	std::cout << "    movl %eax, " << offset << "(%rbp)\n";
-	// }
+antlrcpp::Any CodeGenVisitor::visitDeclareStatement(ifccParser::DeclareStatementContext *ctx) {    
+    // ~~~~~~ CAN'T ASSIGN AND DECLARE ATM ~~~~~~
 	return 0;
 }
 
@@ -43,9 +16,9 @@ antlrcpp::Any CodeGenVisitor::visitAssignStatement(ifccParser::AssignStatementCo
 	visit(ctx->expr());
 	
 	std::string varName = ctx->VAR()->getText();
-	int offset = symbolTable->getVariableOffset(varName);
 
-	std::cout << "    movl %eax, " << offset << "(%rbp)\n";
+	cfg->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {varName, "eax"});
+
 	return 0;
 }
 
@@ -61,45 +34,46 @@ antlrcpp::Any CodeGenVisitor::visitReturnStatement(ifccParser::ReturnStatementCo
 antlrcpp::Any CodeGenVisitor::visitUnaryExpr(ifccParser::UnaryExprContext *ctx) {
 	visit(ctx->expr_unary());
 	if (ctx->NEG()) {
-    	std::cout << "    negl %eax\n";
+    	cfg->current_bb->add_IRInstr(IRInstr::Operation::negl, Type::INT, {});
 	}
 	return 0;
 }
 
 antlrcpp::Any CodeGenVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx) {
-	std::string val = ctx->CONST()->getText();
-	std::cout << "    movl $" << val << ", %eax\n";
-	// place in memory before returning
-	return 0;
+	std::string constValue = ctx->CONST()->getText();
+
+	cfg->current_bb->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {"eax", constValue});
+
+    return 0;
 }
 
 antlrcpp::Any CodeGenVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
 	std::string varName = ctx->VAR()->getText();
-	int offset = symbolTable->getVariableOffset(varName);
 
-	std::cout << "    movl " << offset << "(%rbp), %eax\n";
+	cfg->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {"eax", varName});
+
 	return 0;
 }
 
 antlrcpp::Any CodeGenVisitor::visitAdd(ifccParser::AddContext *ctx) { 
 	visit(ctx->lExpr);
-	const std::string tmpVar = symbolTable->addTemporaryVariable();
-	std::cout << "    movl %eax, " << symbolTable->getVariableOffset(tmpVar) << "(%rbp)\n"; 
+	const std::string tmpVar = cfg->create_new_tempvar(Type::INT);
+	cfg->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {tmpVar, "eax"});
 
 	visit(ctx->rExpr);
-	std::cout << "    movl " << symbolTable->getVariableOffset(tmpVar) << "(%rbp), %edx\n";
-	std::cout << "    addl %edx, %eax\n";	
+	cfg->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {"edx", tmpVar});
+	cfg->current_bb->add_IRInstr(IRInstr::Operation::add, Type::INT, {"eax", "edx"});
 	return 0;
 }
 
 antlrcpp::Any CodeGenVisitor::visitMult(ifccParser::MultContext *ctx) { 
 	visit(ctx->lExpr);	
-	const std::string tmpVar = symbolTable->addTemporaryVariable();
-	std::cout << "    movl %eax, " << symbolTable->getVariableOffset(tmpVar) << "(%rbp)\n";
+	const std::string tmpVar = cfg->create_new_tempvar(Type::INT);
+	cfg->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {tmpVar, "eax"});
 
 	visit(ctx->rExpr);
-	std::cout << "    movl " << symbolTable->getVariableOffset(tmpVar) << "(%rbp), %edx\n";
-	std::cout << "    imull %edx, %eax\n";
+	cfg->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {"edx", tmpVar});
+	cfg->current_bb->add_IRInstr(IRInstr::Operation::mul, Type::INT, {"eax", "edx"});
 	return 0;
 }
 

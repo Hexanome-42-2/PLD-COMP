@@ -5,18 +5,19 @@
 #include "generated/ifccBaseVisitor.h"
 #include "StaticAnalysisVisitor.h"
 #include "SymbolTable.h"
+#include "IR.h"
 #include <map>
 #include <string>
 
 class  CodeGenVisitor : public ifccBaseVisitor {
 	public:
-		SymbolTable *symbolTable;
+		CFG * cfg;
 		
-		CodeGenVisitor(SymbolTable *table) {
-			symbolTable = table;
+		CodeGenVisitor(CFG * cfg) {
+			this->cfg = cfg;
 		};
 
-		virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override ;
+		virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
 		virtual antlrcpp::Any visitDeclareStatement(ifccParser::DeclareStatementContext *ctx) override;
 		virtual antlrcpp::Any visitAssignStatement(ifccParser::AssignStatementContext *ctx) override;
 		virtual antlrcpp::Any visitReturnStatement(ifccParser::ReturnStatementContext *ctx) override;
