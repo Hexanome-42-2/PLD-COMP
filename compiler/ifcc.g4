@@ -2,7 +2,17 @@ grammar ifcc;
 
 axiom : prog EOF ;
 
-prog		: 'int' 'main' '(' ')' '{' statement+ '}' ;
+prog 		: fonctions mainFunc fonctions;
+
+fonctions  	: (FUNCTYPE VAR '(' parameters? ')' '{' ( statement* RETURN expr? ';' )* '}' )*		# FunctionDefinition
+			;
+
+mainFunc  	: 'int' 'main' '(' ')' '{' ( statement* RETURN expr? ';' )* '}'		# MainFunction
+			;
+			
+// 1. Defines function parameters
+parameters	: 'int' VAR (',' VAR)*			# ParamList
+			;
 
 // 2. Defines what a statement is
 statement	: 'int' VAR (',' VAR)* ';'		    # DeclareStatement
@@ -36,6 +46,7 @@ COMPOP      : '<' | '>' ;
 EQOP        : '==' | '!=' ;
 RETURN		: 'return' ;
 VAR			: [a-zA-Z_] [a-zA-Z0-9_]* ;
+FUNCTYPE	: 'int' | 'void' ;
 CONST 		: [0-9]+ ;
 COMMENT 	: '/*' .*? '*/' -> skip ;
 DIRECTIVE 	: '#' .*? '\n' -> skip ;
