@@ -9,13 +9,13 @@ SymbolTable::~SymbolTable() {
 
 void SymbolTable::addVariable(const std::string &name) {
     varOffset -= 4; // Decrement offset for the next variable
-    symbolTable[name] = {varOffset, false}; // Store the current offset and mark as unused
+    symbolTable[name] = {varOffset, Type::INT, false}; // Store the current offset and mark as unused
 }
 
 const std::string SymbolTable::addTemporaryVariable() {
     tmpOffset -= 4; // Decrement offset for the next temporary variable
     std::string tmpName = "tmp" + std::to_string(tmpOffset); // Create a unique name for the temporary variable
-    symbolTable[tmpName] = {tmpOffset, false}; // Store the current offset and mark as unused
+    symbolTable[tmpName] = {tmpOffset, Type::INT, false}; // Store the current offset and mark as unused
     return tmpName; // Return the name of the temporary variable
 }
 
@@ -35,6 +35,18 @@ int SymbolTable::getVariableOffset(const std::string &name) {
     return 1; // Variable not found
 }
 
+Type SymbolTable::getVariableType(const std::string &name) {
+    auto it = symbolTable.find(name);
+    if (it != symbolTable.end()) {
+        return it->second.type;
+    }
+    return Type::ERROR; // Variable not found
+}
+
+int SymbolTable::getMaxOffset() const {
+    return maxOffset;
+}
+
 bool SymbolTable::getUsed(const std::string &name) {
     auto it = symbolTable.find(name);
     if (it != symbolTable.end()) {
@@ -52,6 +64,10 @@ void SymbolTable::MarkUsed(const std::string &name) {
 
 void SymbolTable::InitializeTmpOffset() {
     tmpOffset = varOffset; // Start temporary variable offsets from the current variable offset
+}
+
+void SymbolTable::updateMaxOffset() {
+    maxOffset = tmpOffset < maxOffset ? tmpOffset : maxOffset;
 }
 
 std::vector<std::string> SymbolTable::getUnusedVariables() {

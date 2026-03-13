@@ -11,6 +11,7 @@
 #include "SymbolTable.h"
 #include "CodeGenVisitor.h"
 #include "StaticAnalysisVisitor.h"
+#include "IR.h"
 
 using namespace antlr4;
 using namespace std;
@@ -58,8 +59,11 @@ int main(int argn, const char **argv) {
 		return 1;
 	}
 
-	CodeGenVisitor codeGen(&symbolTable);
+	CFG cfg(&symbolTable);
+	CodeGenVisitor codeGen(&cfg);
 	codeGen.visit(tree);
+
+	cfg.gen_asm(cout);
 
 	return 0;
 }
