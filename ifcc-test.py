@@ -331,3 +331,6 @@ for jobname in jobs:
 
 if not (all_ok or args.verbose):
     print("Some test-cases failed. Run ifcc-test.py with option '--verbose' for more detailed feedback.")
+
+if not all_ok:
+    exit(1)

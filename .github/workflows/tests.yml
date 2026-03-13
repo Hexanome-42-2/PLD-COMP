@@ -1,0 +1,61 @@
+name: Run tests
+
+on: [push]
+
+jobs:
+  # Create a matrix of all tests
+  discover-tests:
+    runs-on: ubuntu-latest
+
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: set-matrix
+        run: |
+          TESTS=$(find testfiles -name "*.c" | jq -R -s -c 'split("\n")[:-1]')
+          echo "matrix=$TESTS" >> $GITHUB_OUTPUT
+
+  # Run each tests
+  test-suite:
+    needs: discover-tests
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false # To continue running all tests even if one fails
+      matrix:
+        test-file: ${{ fromJson(needs.discover-tests.outputs.matrix) }}
+
+    name: Test ${{ matrix.test-file }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          mkdir ~/antlr4-install
+          cd ~/antlr4-install
+          wget https://www.antlr.org/download/antlr-4.13.2-complete.jar
+          wget https://www.antlr.org/download/antlr4-cpp-runtime-4.13.2-source.zip
+          unzip antlr4-cpp-runtime-4.13.2-source.zip
+          mkdir build
+          cd build
+          cmake -DCMAKE_INSTALL_PREFIX:PATH=~/antlr4-install/ ..
+          make -j8
+          make  install
+          
+      - name: Create config.mk
+        run: |
+          # Création du fichier de config avec les chemins standards Ubuntu
+          echo "ANTLRJAR=$HOME/antlr4-install/antlr-4.13.2-complete.jar" > compiler/config.mk
+          echo "ANTLRINC=$HOME/antlr4-install/include/antlr4-runtime/" >> compiler/config.mk
+          echo "ANTLRLIB=$HOME/antlr4-install/lib/libantlr4-runtime.a" >> compiler/config.mk
+
+      - name: Compile
+        run: make -C compiler
+
+      - name: Run single test
+        run: python3 ifcc-test.py ${{ matrix.test-file }}
