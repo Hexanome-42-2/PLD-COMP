@@ -2,30 +2,38 @@ grammar ifcc;
 
 axiom : prog EOF ;
 
-prog		: 'int' 'main' '(' ')' '{' statement* return_statement'}' ;
+prog		: 'int' 'main' '(' ')' '{' statement+ '}' ;
 
 // 2. Defines what a statement is
-statement	: 'int' VAR (',' VAR)* ';'		# DeclareStatement
-			| VAR '=' expr ';'				# AssignStatement
+statement	: 'int' VAR (',' VAR)* ';'		    # DeclareStatement
+			| VAR '=' expr ';'				    # AssignStatement
+			| RETURN expr ';'                   # ReturnStatement
 			;
 
 // 3. Defines what an expression is
-expr		: ( NEG )? expr_unary			# UnaryExpr
-			| lExpr=expr '*' rExpr=expr		# Mult
-			| lExpr=expr '+' rExpr=expr		# Add
+expr		: ( NEG )? expr_unary			    # UnaryExpr
+			| lExpr=expr MULTOP rExpr=expr		# MultDiv
+			| lExpr=expr ADDOP rExpr=expr		# AddSub
 			;
 	
-expr_unary	: CONST							# ConstExpr
-			| VAR							# VarExpr
-			| '(' expr ')'					# Par
+expr_unary	: CONST							    # ConstExpr
+			| VAR							    # VarExpr
+			| '(' expr ')'					    # Par
 			;
 
-return_statement	: RETURN expr ';'		# ReturnStatement
-					;
+expr_bool   : expr                              # Bool
+            | expr COMPOP expr                  # Comp
+            | expr EQOP expr                    # EQ
+            ;
 
 // ~~~~~~~~~~ LEXER Rules (Tokens) ~~~~~~~~~~ //
 
-NEG			: '-' ;
+NEG			: '-' | '!' ;
+ADDOP       : '+' | '-' ;
+MULTOP      : '*' | '/' | '%' ;
+BITOP       : '&' | '|' | '^' ;
+COMPOP      : '<' | '>' ;
+EQOP        : '==' | '!=' ;
 RETURN		: 'return' ;
 VAR			: [a-zA-Z_] [a-zA-Z0-9_]* ;
 CONST 		: [0-9]+ ;

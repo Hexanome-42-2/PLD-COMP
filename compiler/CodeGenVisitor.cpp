@@ -55,7 +55,7 @@ antlrcpp::Any CodeGenVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
 	return 0;
 }
 
-antlrcpp::Any CodeGenVisitor::visitAdd(ifccParser::AddContext *ctx) { 
+antlrcpp::Any CodeGenVisitor::visitAddSub(ifccParser::AddSubContext *ctx) {
 	visit(ctx->lExpr);
 	const std::string tmpVar = cfg->create_new_tempvar(Type::INT);
 	cfg->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {tmpVar, "eax"});
@@ -66,7 +66,7 @@ antlrcpp::Any CodeGenVisitor::visitAdd(ifccParser::AddContext *ctx) {
 	return 0;
 }
 
-antlrcpp::Any CodeGenVisitor::visitMult(ifccParser::MultContext *ctx) { 
+antlrcpp::Any CodeGenVisitor::visitMultDiv(ifccParser::MultDivContext *ctx) {
 	visit(ctx->lExpr);	
 	const std::string tmpVar = cfg->create_new_tempvar(Type::INT);
 	cfg->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {tmpVar, "eax"});
