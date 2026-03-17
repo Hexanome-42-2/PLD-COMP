@@ -24,10 +24,10 @@ statement	: TYPE NAME '=' expr ';'			# DeclareAssignStatement
 			| NAME '=' expr ';'				    # AssignStatement
 			| NAME '(' argument? ')' ';'		# FunctionCallStatement
 			| RETURN expr? ';'                  # ReturnStatement
-            | 'if' '(' expr ')' statement
-              ('else' statement)?               # IfStatement
-            | 'while' '(' expr ')' statement    # WhileStatement
-			;
+			| 'if' '(' expr ')' ( ifst=statement | ifbl=block )
+			  ('else' ( elst=statement | elbl=block ))?   # IfStatement
+			| 'while' '(' expr ')'
+			  ( whst=statement | whbl=block )             # WhileStatement			;
 
 // 4. Defines what an expression is
 expr		: lExpr=expr MULTOP rExpr=expr		    # MultDiv

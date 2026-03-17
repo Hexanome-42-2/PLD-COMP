@@ -115,6 +115,12 @@ void IRInstr::gen_asm(std::ostream &output) {
             output << "    setg %al\n";
             output << "    movzbl %al, %eax\n";
             break;
+        case IRInstr::Operation::jmp:
+            output << "    jmp " << params[0] << "\n";
+            break;
+        case IRInstr::Operation::je:
+            output << "    je " << params[0] << "\n";
+            break;
     }
 }
 

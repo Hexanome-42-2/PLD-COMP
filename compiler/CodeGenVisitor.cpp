@@ -37,6 +37,11 @@ antlrcpp::Any CodeGenVisitor::visitFunction(ifccParser::FunctionContext *ctx) {
 	return 0;
 }
 
+antlrcpp::Any CodeGenVisitor::visitBlock(ifccParser::BlockContext *ctx) {
+	visitChildren(ctx);
+	return 0;
+}
+
 antlrcpp::Any CodeGenVisitor::visitDeclareStatement(ifccParser::DeclareStatementContext *ctx) {
     // Declaration only, no code to generate
 	return 0;
@@ -94,6 +99,69 @@ antlrcpp::Any CodeGenVisitor::visitReturnStatement(ifccParser::ReturnStatementCo
 
 	return 0;
 }
+
+antlrcpp::Any CodeGenVisitor::visitIfStatement(ifccParser::IfStatementContext *ctx) {
+    std::string statement_name = cfg->new_BB_name();
+    BasicBlock *test_block = new BasicBlock(cfg, statement_name + "_test");
+    BasicBlock *then_block = new BasicBlock(cfg, statement_name + "_then");
+    BasicBlock *else_block = nullptr;
+
+    int else_flag = (ctx->elst != nullptr || ctx->elbl != nullptr);
+    if (else_flag) {
+        else_block = new BasicBlock(cfg, statement_name + "_else");
+    }
+
+    BasicBlock *end_if_block = new BasicBlock(cfg, cfg->new_BB_name());
+
+    cfg->add_bb(test_block);
+    visit(ctx->expr());
+
+    test_block->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {"edx", "1"});
+    test_block->add_IRInstr(IRInstr::Operation::cmp_eq, Type::INT, {"eax", "edx"});
+    test_block->add_IRInstr(IRInstr::Operation::je, Type::VOID, {then_block->label});
+
+    if (else_flag) {
+        test_block->add_IRInstr(IRInstr::Operation::jmp, Type::VOID, {else_block->label});
+    } else {
+        test_block->add_IRInstr(IRInstr::Operation::jmp, Type::VOID, {end_if_block->label});
+    }
+
+    // True
+    cfg->add_bb(then_block);
+    test_block->exit_true = cfg->current_bb;
+
+    if (ctx->ifbl != nullptr) {
+        visit(ctx->ifbl);
+    }
+    if (ctx->ifst != nullptr) {
+        visit(ctx->ifst);
+    }
+
+    cfg->current_bb->add_IRInstr(IRInstr::Operation::jmp, Type::VOID, {end_if_block->label});
+
+    // False
+    if (else_flag) {
+        cfg->add_bb(else_block);
+        test_block->exit_false = cfg->current_bb;
+
+        if (ctx->elbl != nullptr) {
+            visit(ctx->elbl);
+        }
+        if (ctx->elst != nullptr) {
+            visit(ctx->elst);
+        }
+
+        cfg->current_bb->add_IRInstr(IRInstr::Operation::jmp, Type::VOID, {end_if_block->label});
+    }
+
+    cfg->add_bb(end_if_block);
+
+    return 0;
+}
+
+// antlrcpp::Any CodeGenVisitor::visitWhileStatement(ifccParser::WhileStatementContext *ctx) {
+//     return 0;
+// }
 
 // ~~~~~~~~ Expressions ~~~~~~~~
 

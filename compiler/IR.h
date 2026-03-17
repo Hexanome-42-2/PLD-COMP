@@ -47,7 +47,9 @@ class IRInstr {
 	    cmp_gt,
         band,
         bor,
-        bxor
+        bxor,
+	    jmp,
+	    je
 	} Operation;
 
 
