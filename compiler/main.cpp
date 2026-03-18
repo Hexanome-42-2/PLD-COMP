@@ -62,13 +62,12 @@ int main(int argn, const char **argv) {
 		return 1;
 	}
 
-	CFG programCFG(&symbolTable);
-	std::unordered_map<std::string, CFG*> functionCFGs; // Map to hold CFGs for each function
+	CFGContainer cfgContainer(&functionSymbolTables);
 
-	CodeGenVisitor codeGen(&programCFG, &functionCFGs, &functionSymbolTables);
+	CodeGenVisitor codeGen(&cfgContainer, &functionSymbolTables);
 	codeGen.visit(tree);
 
-	programCFG.gen_asm(cout);
+	cfgContainer.gen_asm(cout);
 
 	return 0;
 }

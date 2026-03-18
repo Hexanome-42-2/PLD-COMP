@@ -13,17 +13,14 @@
 
 class  CodeGenVisitor : public ifccBaseVisitor {
 	public:
-		CFG *programCFG;
-		CFG *cfg = nullptr; // Current CFG being accessed
-		std::unordered_map<std::string, CFG*> *functionCFGs;
+		CFG *currentCFG = nullptr; // Current CFG being accessed
+		CFGContainer *cfgContainer;
 		std::unordered_map<std::string, SymbolTable*> *functionSymbolTables;
 
 		CodeGenVisitor(
-			CFG *cfg, 
-			std::unordered_map<std::string, CFG*> *functionCFGs, 
+			CFGContainer *cfgContainer,
 			std::unordered_map<std::string, SymbolTable*> *functionSymbolTables
-		) : programCFG(cfg), 
-			functionCFGs(functionCFGs), 
+		) : cfgContainer(cfgContainer),
 			functionSymbolTables(functionSymbolTables) {};
 
 		virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;

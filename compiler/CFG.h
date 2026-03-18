@@ -11,7 +11,7 @@ class BasicBlock;
 class CFG {
  public:
 	//CFG(DefFonction* ast);
-    CFG(SymbolTable * aSymbolTable) : symbolTable(aSymbolTable), nextBBnumber(0), bbs(std::vector <BasicBlock*>()), current_bb(nullptr) {}
+    CFG(SymbolTable * aSymbolTable, std::string aName) : symbolTable(aSymbolTable), name(aName), nextBBnumber(0), bbs(std::vector <BasicBlock*>()), current_bb(nullptr) {}
 
 	~CFG();
 
@@ -20,10 +20,10 @@ class CFG {
 	void add_bb(BasicBlock* bb); //
 
 	// x86 code generation: could be encapsulated in a processor class in a retargetable compiler
-	void gen_asm(std::ostream& o);
 	std::string IR_reg_to_asm(std::string reg); /**< helper method: inputs a IR reg or input variable, returns e.g. "-24(%rbp)" for the proper value of 24 */
-	void gen_asm_prologue(std::ostream& o);
-	void gen_asm_epilogue(std::ostream& o);
+	virtual void gen_asm(std::ostream& o);
+	virtual void gen_asm_prologue(std::ostream& o);
+	virtual void gen_asm_epilogue(std::ostream& o);
 
 	// symbol table methods
 	void add_to_symbol_table(std::string name, Type t);
@@ -46,10 +46,14 @@ class CFG {
 class CFGContainer : CFG {
     private:
         std::unordered_map <std::string, CFG*> cfgs;
+		std::unordered_map <std::string, SymbolTable*> *symbolTables;
     public:
-		CFGContainer() : CFG(nullptr) {};
+		CFGContainer(std::unordered_map <std::string, SymbolTable*> *symbolTables) : symbolTables(symbolTables), CFG(nullptr, "") {};
 		~CFGContainer();
 		void add_cfg(std::string name, CFG* cfg);
 		CFG* get_cfg(std::string name);
-        
+
+		virtual void gen_asm(std::ostream &o);
+		virtual void gen_asm_prologue(std::ostream &o);
+		virtual void gen_asm_epilogue(std::ostream &o);
 };
