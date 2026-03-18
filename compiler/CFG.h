@@ -5,6 +5,8 @@
 #include<unordered_map>
 #include<string>
 
+class BasicBlock;
+
 // Class for the Control Flow Graph (CFG)
 class CFG {
  public:
@@ -38,11 +40,16 @@ class CFG {
 	int nextBBnumber; /**< just for naming */
 	
 	std::vector <BasicBlock*> bbs; /**< all the basic blocks of this CFG*/
+	std::string name; /**< the name of the function this CFG represents (e.g., "main" for the main CFG) */
 };
 
 class CFGContainer : CFG {
     private:
         std::unordered_map <std::string, CFG*> cfgs;
     public:
+		CFGContainer() : CFG(nullptr) {};
+		~CFGContainer();
+		void add_cfg(std::string name, CFG* cfg);
+		CFG* get_cfg(std::string name);
         
-}
+};

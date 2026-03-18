@@ -7,10 +7,11 @@
 
 // Declarations from the parser -- replace with your own
 #include "SymbolTable.h"
+#include "CFG.h"
 
 class BasicBlock;
-class CFG;
 class DefFonction;
+class CFG;
 
 
 //! The class for one 3-address instruction

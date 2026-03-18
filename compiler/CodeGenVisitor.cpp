@@ -1,9 +1,26 @@
 #include "CodeGenVisitor.h"
 
 antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx) {
-	cfg->add_bb(new BasicBlock(cfg, cfg->new_BB_name()));
+	programCFG->add_bb(new BasicBlock(programCFG, programCFG->new_BB_name()));
+	cfg = programCFG; // Set the current CFG to the program CFG
     visitChildren(ctx);
     return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitFunction(ifccParser::FunctionContext *ctx) {
+	// 1. Create a new CFG for this function and add it to the map
+	std::string functionName = ctx->funcName->getText();
+	CFG* oldCFG = cfg; // Save the current CFG to restore it later
+	(*functionCFGs)[functionName] = new CFG((*functionSymbolTables)[functionName]);
+
+	cfg = (*functionCFGs)[functionName]; // Set the current CFG to the new function CFG
+
+	cfg->add_bb(new BasicBlock(cfg, cfg->new_BB_name())); // Start with a new basic block for the function entry
+
+	// 2. Visit the function block to generate IR
+	visit(ctx->block());
+	cfg = oldCFG; // Restore the previous CFG
+	return 0;
 }
 
 antlrcpp::Any CodeGenVisitor::visitDeclareStatement(ifccParser::DeclareStatementContext *ctx) {    
@@ -15,7 +32,7 @@ antlrcpp::Any CodeGenVisitor::visitAssignStatement(ifccParser::AssignStatementCo
 	// Visit the expression, evaluating the right side and putting the result in %eax
 	visit(ctx->expr());
 	
-	std::string varName = ctx->VAR()->getText();
+	std::string varName = ctx->NAME()->getText();
 
 	cfg->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {varName, "eax"});
 
@@ -39,6 +56,12 @@ antlrcpp::Any CodeGenVisitor::visitUnaryExpr(ifccParser::UnaryExprContext *ctx) 
 	return 0;
 }
 
+antlrcpp::Any CodeGenVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx) {
+	// Implementation for function call generation
+	// TODO : add IR instructions to evaluate arguments and perform the call
+	return 0;
+}
+
 antlrcpp::Any CodeGenVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx) {
 	std::string constValue = ctx->CONST()->getText();
 
@@ -48,7 +71,7 @@ antlrcpp::Any CodeGenVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx) 
 }
 
 antlrcpp::Any CodeGenVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
-	std::string varName = ctx->VAR()->getText();
+	std::string varName = ctx->NAME()->getText();
 
 	cfg->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {"eax", varName});
 

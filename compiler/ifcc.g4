@@ -2,34 +2,33 @@ grammar ifcc;
 
 axiom : prog EOF ;
 
-prog 		: ( fonction | statement )* mainFunc ( fonction | statement )*;
+prog 		: fonction+;
 
-fonction  	: returnType=FUNCTYPE funcName=VAR '(' parameters? ')' '{' ( (statement | return_stmt)* RETURN expr? ';' )* '}'		# Function
+fonction  	: functype=TYPE funcName=NAME '(' parameters? ')' block		# Function
 			;
 
-mainFunc  	: 'int' 'main' '(' ')' '{' ( (statement | return_stmt)* RETURN expr? ';' )* '}'		# MainFunction
+block		: '{' statement* '}'				# BlockStatement
 			;
-			
+
 // 1. Defines function parameters
-parameters	: 'int' VAR (',' VAR)*			# ParamList
+parameters	: TYPE NAME (',' TYPE NAME)*		# ParamList
 			;
 
 // 2. Defines what a statement is
-statement	: 'int' VAR (',' VAR)* ';'		    # DeclareStatement
-			| VAR '=' expr ';'				    # AssignStatement
-			;
-
-return_stmt	: RETURN expr ';'                   # ReturnStatement
+statement	: TYPE NAME (',' NAME)* ';'		# DeclareStatement
+			| NAME '=' expr ';'				    # AssignStatement
+			| RETURN expr ';'                   # ReturnStatement
 			;
 
 // 3. Defines what an expression is
 expr		: ( NEG )? expr_unary			    # UnaryExpr
+			| NAME '(' (expr (',' expr)*)? ')'	# FuncCall
 			| lExpr=expr MULTOP rExpr=expr		# MultDiv
 			| lExpr=expr ADDOP rExpr=expr		# AddSub
 			;
 	
 expr_unary	: CONST							    # ConstExpr
-			| VAR							    # VarExpr
+			| NAME							    # VarExpr
 			| '(' expr ')'					    # Par
 			;
 
@@ -47,8 +46,8 @@ BITOP       : '&' | '|' | '^' ;
 COMPOP      : '<' | '>' ;
 EQOP        : '==' | '!=' ;
 RETURN		: 'return' ;
-VAR			: [a-zA-Z_] [a-zA-Z0-9_]* ;
-FUNCTYPE	: 'int' | 'void' ;
+TYPE		: 'int' ;
+NAME		: [a-zA-Z_] [a-zA-Z0-9_]* ;
 CONST 		: [0-9]+ ;
 COMMENT 	: '/*' .*? '*/' -> skip ;
 DIRECTIVE 	: '#' .*? '\n' -> skip ;
