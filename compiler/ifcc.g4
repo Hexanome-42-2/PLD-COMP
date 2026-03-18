@@ -2,12 +2,12 @@ grammar ifcc;
 
 axiom : prog EOF ;
 
-prog 		: fonctions mainFunc fonctions;
+prog 		: ( fonction | statement )* mainFunc ( fonction | statement )*;
 
-fonctions  	: (FUNCTYPE VAR '(' parameters? ')' '{' ( statement* RETURN expr? ';' )* '}' )*		# FunctionDefinition
+fonction  	: returnType=FUNCTYPE funcName=VAR '(' parameters? ')' '{' ( (statement | return_stmt)* RETURN expr? ';' )* '}'		# Function
 			;
 
-mainFunc  	: 'int' 'main' '(' ')' '{' ( statement* RETURN expr? ';' )* '}'		# MainFunction
+mainFunc  	: 'int' 'main' '(' ')' '{' ( (statement | return_stmt)* RETURN expr? ';' )* '}'		# MainFunction
 			;
 			
 // 1. Defines function parameters
@@ -17,7 +17,9 @@ parameters	: 'int' VAR (',' VAR)*			# ParamList
 // 2. Defines what a statement is
 statement	: 'int' VAR (',' VAR)* ';'		    # DeclareStatement
 			| VAR '=' expr ';'				    # AssignStatement
-			| RETURN expr ';'                   # ReturnStatement
+			;
+
+return_stmt	: RETURN expr ';'                   # ReturnStatement
 			;
 
 // 3. Defines what an expression is
