@@ -6,6 +6,7 @@
 #include "StaticAnalysisVisitor.h"
 #include "SymbolTable.h"
 #include "IR.h"
+#include "CFG.h"
 #include <map>
 #include <string>
 
