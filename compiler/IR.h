@@ -29,6 +29,7 @@ class IRInstr {
 		rmem,
 		wmem,
 		negl,
+        plus,
         notl,
 		call, 
 		cmp_eq,
