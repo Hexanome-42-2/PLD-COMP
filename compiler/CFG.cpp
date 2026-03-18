@@ -13,17 +13,9 @@ void CFG::add_bb(BasicBlock* bb) {
 }
 
 std::string CFG::new_BB_name() {
-    std::string name = "main_bloc" + nextBBnumber;
+    std::string name = name + "_bloc_" + std::to_string(nextBBnumber);
     nextBBnumber++;
     return name;
-}
-
-void CFG::gen_asm(std::ostream& output) {
-    gen_asm_prologue(output);
-    for (BasicBlock* bb : bbs) {
-        bb->gen_asm(output);
-    }
-    gen_asm_epilogue(output);
 }
 
 std::string CFG::IR_reg_to_asm(std::string reg) {
@@ -35,29 +27,33 @@ std::string CFG::IR_reg_to_asm(std::string reg) {
     }
 }
 
+void CFG::gen_asm(std::ostream& output) {
+    gen_asm_prologue(output);
+    for (BasicBlock* bb : bbs) {
+        bb->gen_asm(output);
+    }
+    gen_asm_epilogue(output);
+}
+
 void CFG::gen_asm_prologue(std::ostream& output) {
     #ifdef __APPLE__
-    output << ".globl _main\n" ;
-    output << "_main: \n" ;
+    output << ".globl _" << name << "\n" ;
+    output << "_" << name << ": \n" ;
     #else
-    output << ".globl main\n" ;
-    output << "main: \n" ;
+    output << ".globl " << name << "\n" ;
+    output << name << ": \n" ;
     #endif
     output << "    pushq %rbp\n";
     output << "    movq %rsp, %rbp\n";
-    output << "    subq $" << symbolTable->getMaxOffset() << ", %rsp\n";
+    output << "    subq $160, %rsp\n";
 }
 
 void CFG::gen_asm_epilogue(std::ostream& output) {
-    output << "main_exit:\n";
+    output << name << "_exit:\n";
     output << "    movq %rbp, %rsp\n";
 	output << "    popq %rbp\n";
 	output << "    ret \n";
 }
-/*
-void CFG::add_to_symbol_table(std::string name, Type t) {
-    symbolTable
-}*/
 
 std::string CFG::create_new_tempvar(Type t) {
     std::string tmpVar = symbolTable->addTemporaryVariable();
@@ -71,4 +67,38 @@ int CFG::get_var_index(std::string name) {
 
 Type CFG::get_var_type(std::string name) {
     return symbolTable->getVariableType(name);
+}
+
+
+CFGContainer::~CFGContainer() {
+    for (auto& pair : cfgs) {
+        delete pair.second;
+    }
+    cfgs.clear();
+}
+
+void CFGContainer::add_cfg(std::string name, CFG* cfg) {
+    cfgs[name] = cfg;
+}
+
+CFG* CFGContainer::get_cfg(std::string name) {
+    auto it = cfgs.find(name);
+    if (it != cfgs.end()) {
+        return it->second;
+    }
+    return nullptr; // CFG not found
+}
+
+void CFGContainer::gen_asm(std::ostream &output) {
+    gen_asm_prologue(output);
+    for (const std::pair<std::string, CFG*> cfg : cfgs) {
+        cfg.second->gen_asm(output);
+    }
+    gen_asm_epilogue(output);
+}
+
+void CFGContainer::gen_asm_prologue(std::ostream &output) {
+}
+
+void CFGContainer::gen_asm_epilogue(std::ostream &output) {
 }
