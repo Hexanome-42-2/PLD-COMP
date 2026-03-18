@@ -1,4 +1,5 @@
 #include "IR.h"
+#include "CFG.h"
 
 CFG::~CFG() {
     for (BasicBlock* bb : bbs) {

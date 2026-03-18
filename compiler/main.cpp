@@ -12,6 +12,7 @@
 #include "CodeGenVisitor.h"
 #include "StaticAnalysisVisitor.h"
 #include "IR.h"
+#include "CFG.h"
 
 using namespace antlr4;
 using namespace std;
