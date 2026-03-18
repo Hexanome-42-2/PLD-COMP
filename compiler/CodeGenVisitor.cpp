@@ -98,6 +98,24 @@ antlrcpp::Any CodeGenVisitor::visitMultDiv(ifccParser::MultDivContext *ctx) {
 	return 0;
 }
 
+antlrcpp::Any CodeGenVisitor::visitBitWise(ifccParser::BitWiseContext *ctx) {
+    visit(ctx->lExpr);
+    const std::string tmpVar = cfg->create_new_tempvar(Type::INT);
+	cfg->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {tmpVar, "eax"});
+
+    visit(ctx->rExpr);
+	cfg->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {"edx", tmpVar});
+
+    if (ctx->BITOP()->getText() == "&") {
+        cfg->current_bb->add_IRInstr(IRInstr::Operation::band, Type::INT, {"eax", "edx"});
+    } else if (ctx->BITOP()->getText() == "|") {
+        cfg->current_bb->add_IRInstr(IRInstr::Operation::bor, Type::INT, {"eax", "edx"});
+    } else if (ctx->BITOP()->getText() == "^") {
+        cfg->current_bb->add_IRInstr(IRInstr::Operation::bxor, Type::INT, {"eax", "edx"});
+    }
+    return 0;
+}
+
 antlrcpp::Any CodeGenVisitor::visitPar(ifccParser::ParContext *ctx) {
 	visit(ctx->expr());
 	return 0;

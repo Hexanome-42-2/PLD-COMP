@@ -150,6 +150,18 @@ void IRInstr::gen_asm(std::ostream &output) {
             output << "	   sete	%al\n";
             output << "	   movzbl %al, %eax\n";
             break;
+        
+        case IRInstr::Operation::band:
+            output << "    andl %edx, %eax\n";
+            break;
+
+        case IRInstr::Operation::bor:
+            output << "    orl %edx, %eax\n";
+            break;
+
+        case IRInstr::Operation::bxor:
+            output << "    xorl %edx, %eax\n";
+            break;
         /*    call, 
 		cmp_eq,
 		cmp_lt,

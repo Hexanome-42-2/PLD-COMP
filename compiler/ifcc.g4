@@ -14,6 +14,7 @@ statement	: 'int' VAR (',' VAR)* ';'		        # DeclareStatement
 expr		: lExpr=expr MULTOP rExpr=expr		    # MultDiv
 			| lExpr=expr op=('-'|'+') rExpr=expr    # AddSub
 			| ( op=('-'|'+'|'!') )? expr_unary      # UnaryExpr
+			| lExpr=expr BITOP rExpr=expr		    # BitWise
             ;
 
 expr_unary	: CONST							        # ConstExpr

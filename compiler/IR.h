@@ -34,7 +34,10 @@ class IRInstr {
 		call, 
 		cmp_eq,
 		cmp_lt,
-		cmp_le
+		cmp_le,
+        band,
+        bor,
+        bxor
 	} Operation;
 
 
