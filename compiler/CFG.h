@@ -44,5 +44,5 @@ class CFGContainer : CFG {
     private:
         std::unordered_map <std::string, CFG*> cfgs;
     public:
-        
-}
+
+};
