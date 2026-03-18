@@ -107,13 +107,27 @@ void IRInstr::gen_asm(std::ostream &output) {
             break;
         
         case IRInstr::Operation::sub:
-            output << "    subl %edx, %eax\n";
+            output << "    subl %eax, %edx\n";
+            output << "    movl %edx, %eax\n";
             break;
         
         case IRInstr::Operation::mul:
             output << "    imull %edx, %eax\n";
             break;
-            
+        
+        case IRInstr::Operation::div:
+            output << "    movl " << bb->cfg->IR_reg_to_asm(params[0]) << ", %eax\n";
+            output << "    cltd\n";
+            output << "    idivl " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            break;
+
+        case IRInstr::Operation::mod:
+            output << "    movl " << bb->cfg->IR_reg_to_asm(params[0]) << ", %eax\n";
+            output << "    cltd\n";
+            output << "    idivl " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            output << "    movl %edx, %eax\n";
+            break;
+
         case IRInstr::Operation::rmem:
             output << "    movl " << bb->cfg->IR_reg_to_asm(params[1]) << ", %edx\n";
             output << "    movl %edx, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
@@ -127,7 +141,27 @@ void IRInstr::gen_asm(std::ostream &output) {
             //output << "    movl %eax, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
             output << "    negl %eax\n";
             break;
-		
+
+        case IRInstr::Operation::plus:
+            break;
+        
+		case IRInstr::Operation::notl:
+            output << "    cmpl $0, %eax\n";
+            output << "	   sete	%al\n";
+            output << "	   movzbl %al, %eax\n";
+            break;
+        
+        case IRInstr::Operation::band:
+            output << "    andl %edx, %eax\n";
+            break;
+
+        case IRInstr::Operation::bor:
+            output << "    orl %edx, %eax\n";
+            break;
+
+        case IRInstr::Operation::bxor:
+            output << "    xorl %edx, %eax\n";
+            break;
         /*    call, 
 		cmp_eq,
 		cmp_lt,

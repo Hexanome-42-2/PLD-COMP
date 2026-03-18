@@ -24,13 +24,20 @@ class IRInstr {
 		add,
 		sub,
 		mul,
+        div,
+        mod,
 		rmem,
 		wmem,
 		negl,
+        plus,
+        notl,
 		call, 
 		cmp_eq,
 		cmp_lt,
-		cmp_le
+		cmp_le,
+        band,
+        bor,
+        bxor
 	} Operation;
 
 
