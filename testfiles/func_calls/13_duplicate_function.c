@@ -1,0 +1,12 @@
+// EXPECT: error — function 'foo' already defined
+int foo() {
+	return 1;
+}
+
+int foo() {
+	return 2;
+}
+
+int main() {
+	return foo();
+}
