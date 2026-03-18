@@ -145,10 +145,10 @@ void IRInstr::gen_asm(std::ostream &output) {
         case IRInstr::Operation::plus:
             break;
         
-		case IRInstr::Operation::notl: //FAUUUUUUUX
-            output << "    movl %eax, %edx\n";
-            output << "    xorl $1, %edx\n";
-            output << "    movl %edx, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+		case IRInstr::Operation::notl:
+            output << "    cmpl $0, %eax\n";
+            output << "	   sete	%al\n";
+            output << "	   movzbl %al, %eax\n";
             break;
         /*    call, 
 		cmp_eq,
