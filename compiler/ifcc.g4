@@ -59,5 +59,6 @@ VOID_TYPE	: 'void' ;
 VAR			: [a-zA-Z_] [a-zA-Z0-9_]* ;
 CONST 		: [0-9]+ ;
 COMMENT 	: '/*' .*? '*/' -> skip ;
+LINE_COMMENT: '//' ~[\r\n]* -> skip ;
 DIRECTIVE 	: '#' .*? '\n' -> skip ;
 WS    		: [ \t\r\n] -> channel(HIDDEN);
