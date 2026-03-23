@@ -31,13 +31,18 @@ std::any StaticAnalysisVisitor::visitProg(ifccParser::ProgContext *ctx) {
 std::any StaticAnalysisVisitor::visitFunction(ifccParser::FunctionContext *ctx) {
 	// 1. Create a new symbol table for this function and add it to the map
 	std::string functionName = ctx->funcName->getText();
+	// 2. Check for conflicting function names (e.g., if a function with the same name has already been declared)
+	if (functionSymbolTables->find(functionName) != functionSymbolTables->end()) {
+		std::cerr << "Error: Function '" << functionName << "' has already been declared." << std::endl;
+		hasError = true;
+		return 0;
+	}
+
 	SymbolTable* functionTable = new SymbolTable();
 	(*functionSymbolTables)[functionName] = functionTable;
 	SymbolTable* oldSymbolTable = currSymbolTable; // Save the current symbol table to restore it later
 	currSymbolTable = functionTable; // Set the current symbol table to the new function's symbol table
 	// TODO : Handle function parameters and add them to the function's symbol table
-
-	// TODO : Handle conflicting function names (e.g., if a function is declared with the same name as a variable in the global scope, or if two functions have the same name)
 
 	// 2. Visit the function block to populate the symbol table and check for errors
 	visit(ctx->block());
