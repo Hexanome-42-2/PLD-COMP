@@ -54,11 +54,15 @@ void IRInstr::gen_asm(std::ostream &output) {
             //output << "    movl %eax, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
             output << "    negl %eax\n";
             break;
-		
-        /*    call, 
+        
+        case IRInstr::Operation::call:
+            output << "    call " << params[0] << "\n";
+            break;
+        /* 
 		cmp_eq,
 		cmp_lt,
-		cmp_le*/
+		cmp_le
+        */
     }
 }
 

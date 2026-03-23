@@ -17,7 +17,10 @@ antlrcpp::Any CodeGenVisitor::visitFunction(ifccParser::FunctionContext *ctx) {
 
 	// 2. Visit the function block to generate IR
 	visit(ctx->block());
+	
+	// 3. Restore locations
 	currentCFG = oldCFG; // Restore the previous CFG
+
 	return 0;
 }
 
@@ -56,7 +59,7 @@ antlrcpp::Any CodeGenVisitor::visitUnaryExpr(ifccParser::UnaryExprContext *ctx) 
 
 antlrcpp::Any CodeGenVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx) {
 	// Implementation for function call generation
-	// TODO : add IR instructions to evaluate arguments and perform the call
+	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::call, Type::INT, {ctx->NAME()->getText()});	
 	return 0;
 }
 

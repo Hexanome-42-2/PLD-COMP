@@ -13,9 +13,9 @@ void CFG::add_bb(BasicBlock* bb) {
 }
 
 std::string CFG::new_BB_name() {
-    std::string name = name + "_bloc_" + std::to_string(nextBBnumber);
+    std::string bb_name = name + "_bloc_" + std::to_string(nextBBnumber);
     nextBBnumber++;
-    return name;
+    return bb_name;
 }
 
 std::string CFG::IR_reg_to_asm(std::string reg) {
