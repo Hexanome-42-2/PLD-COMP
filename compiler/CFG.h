@@ -16,7 +16,7 @@ class CFG {
 	~CFG();
 
 	//DefFonction* ast; /**< The AST this CFG comes from */
-	
+
 	void add_bb(BasicBlock* bb); //
 
 	// x86 code generation: could be encapsulated in a processor class in a retargetable compiler
@@ -38,7 +38,7 @@ class CFG {
  protected:
 	SymbolTable * symbolTable; /**< part of the symbol table  */
 	int nextBBnumber; /**< just for naming */
-	
+
 	std::vector <BasicBlock*> bbs; /**< all the basic blocks of this CFG*/
 	std::string name; /**< the name of the function this CFG represents (e.g., "main" for the main CFG) */
 };

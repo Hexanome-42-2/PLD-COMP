@@ -24,8 +24,25 @@ antlrcpp::Any CodeGenVisitor::visitFunction(ifccParser::FunctionContext *ctx) {
 	return 0;
 }
 
-antlrcpp::Any CodeGenVisitor::visitDeclareStatement(ifccParser::DeclareStatementContext *ctx) {    
-    // ~~~~~~ CAN'T ASSIGN AND DECLARE ATM ~~~~~~
+antlrcpp::Any CodeGenVisitor::visitDeclareStatement(ifccParser::DeclareStatementContext *ctx) {
+    // Declaration only, no code to generate
+	return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitDeclareAssignStatement(ifccParser::DeclareAssignStatementContext *ctx) {
+	// Evaluate the expression on the right side
+	visit(ctx->expr());
+
+	// Store result into the newly declared variable
+	std::string varName = ctx->NAME()->getText();
+	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {varName, "eax"});
+
+	return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitFunctionCallStatement(ifccParser::FunctionCallStatementContext *ctx) {
+	// TODO: push arguments to registers per calling convention
+	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::call, Type::INT, {ctx->NAME()->getText()});
 	return 0;
 }
 
@@ -41,8 +58,10 @@ antlrcpp::Any CodeGenVisitor::visitAssignStatement(ifccParser::AssignStatementCo
 }
 
 antlrcpp::Any CodeGenVisitor::visitReturnStatement(ifccParser::ReturnStatementContext *ctx) {
-	// Evaluate the result of the expression
-	visit(ctx->expr());
+	// Evaluate the result of the expression (if present — void functions have no return expr)
+	if (ctx->expr()) {
+		visit(ctx->expr());
+	}
 
 	return 0;
 }
