@@ -1,5 +1,9 @@
 #include "CodeGenVisitor.h"
 
+namespace {
+const std::vector<std::string> kArgRegs = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};
+}
+
 antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx) {
     visitChildren(ctx);
     return 0;
@@ -14,6 +18,18 @@ antlrcpp::Any CodeGenVisitor::visitFunction(ifccParser::FunctionContext *ctx) {
 	cfgContainer->add_cfg(functionName, currentCFG);
 
 	currentCFG->add_bb(new BasicBlock(currentCFG, currentCFG->new_BB_name())); // Start with a new basic block for the function entry
+
+	// Materialize incoming register arguments into local parameter slots.
+	if (ctx->parameters()) {
+		auto* params = dynamic_cast<ifccParser::ParamListContext*>(ctx->parameters());
+		if (params) {
+			auto paramNames = params->NAME();
+			for (size_t i = 0; i < paramNames.size() && i < kArgRegs.size(); ++i) {
+				currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT,
+					{paramNames[i]->getText(), kArgRegs[i]});
+			}
+		}
+	}
 
 	// 2. Visit the function block to generate IR
 	visit(ctx->block());
@@ -41,7 +57,23 @@ antlrcpp::Any CodeGenVisitor::visitDeclareAssignStatement(ifccParser::DeclareAss
 }
 
 antlrcpp::Any CodeGenVisitor::visitFunctionCallStatement(ifccParser::FunctionCallStatementContext *ctx) {
-	// TODO: push arguments to registers per calling convention
+	if (ctx->argument()) {
+		auto* args = dynamic_cast<ifccParser::ArgumentListContext*>(ctx->argument());
+		if (args) {
+			std::vector<std::string> argTemps;
+			for (auto* argExpr : args->expr()) {
+				visit(argExpr);
+				const std::string tmpVar = currentCFG->create_new_tempvar(Type::INT);
+				currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {tmpVar, "eax"});
+				argTemps.push_back(tmpVar);
+			}
+
+			for (size_t i = 0; i < argTemps.size() && i < kArgRegs.size(); ++i) {
+				currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {kArgRegs[i], argTemps[i]});
+			}
+		}
+	}
+
 	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::call, Type::INT, {ctx->NAME()->getText()});
 	return 0;
 }
@@ -77,7 +109,23 @@ antlrcpp::Any CodeGenVisitor::visitUnaryExpr(ifccParser::UnaryExprContext *ctx) 
 }
 
 antlrcpp::Any CodeGenVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx) {
-	// Implementation for function call generation
+	if (ctx->argument()) {
+		auto* args = dynamic_cast<ifccParser::ArgumentListContext*>(ctx->argument());
+		if (args) {
+			std::vector<std::string> argTemps;
+			for (auto* argExpr : args->expr()) {
+				visit(argExpr);
+				const std::string tmpVar = currentCFG->create_new_tempvar(Type::INT);
+				currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {tmpVar, "eax"});
+				argTemps.push_back(tmpVar);
+			}
+
+			for (size_t i = 0; i < argTemps.size() && i < kArgRegs.size(); ++i) {
+				currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {kArgRegs[i], argTemps[i]});
+			}
+		}
+	}
+
 	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::call, Type::INT, {ctx->NAME()->getText()});	
 	return 0;
 }

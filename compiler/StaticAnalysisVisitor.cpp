@@ -9,7 +9,9 @@ std::any StaticAnalysisVisitor::visitProg(ifccParser::ProgContext *ctx) {
 		if (f) {
 			std::string name = f->funcName->getText();
 			std::string retType = f->functype->getText(); // "int" or "void"
-			int paramCount = 0;
+			// In C, f() means unspecified parameter list (not strictly zero parameters).
+			// We encode unknown arity as -1 and skip strict arg-count checks for those functions.
+			int paramCount = -1;
 			if (f->parameters()) {
 				auto* params = dynamic_cast<ifccParser::ParamListContext*>(f->parameters());
 				if (params) {
@@ -167,7 +169,7 @@ std::any StaticAnalysisVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx) 
 		}
 	}
 
-	if (actualArgs != expectedArgs) {
+	if (expectedArgs >= 0 && actualArgs != expectedArgs) {
 		std::cerr << "Error: Function '" << funcName << "' expects "
 				  << expectedArgs << " argument(s), but " << actualArgs
 				  << " were provided." << std::endl;
@@ -211,7 +213,7 @@ std::any StaticAnalysisVisitor::visitFunctionCallStatement(ifccParser::FunctionC
 		}
 	}
 
-	if (actualArgs != expectedArgs) {
+	if (expectedArgs >= 0 && actualArgs != expectedArgs) {
 		std::cerr << "Error: Function '" << funcName << "' expects "
 				  << expectedArgs << " argument(s), but " << actualArgs
 				  << " were provided." << std::endl;

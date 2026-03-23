@@ -19,7 +19,8 @@ std::string CFG::new_BB_name() {
 }
 
 std::string CFG::IR_reg_to_asm(std::string reg) {
-    if (reg == "eax" || reg == "edx") {
+    if (reg == "eax" || reg == "edx" || reg == "edi" || reg == "esi" ||
+        reg == "ecx" || reg == "r8d" || reg == "r9d") {
         return "%" + reg;
     } else {
         std::string ret =  std::to_string(symbolTable->getVariableOffset(reg)) + "(%rbp)";
