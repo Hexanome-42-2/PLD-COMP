@@ -27,10 +27,11 @@ statement	: TYPE NAME '=' expr ';'			# DeclareAssignStatement
 			;
 
 // 4. Defines what an expression is
-expr		: ( NEG )? expr_unary			    # UnaryExpr
-			| lExpr=expr MULTOP rExpr=expr		# MultDiv
-			| lExpr=expr ADDOP rExpr=expr		# AddSub
-			;
+expr		: lExpr=expr MULTOP rExpr=expr		    # MultDiv
+			| lExpr=expr op=('-'|'+') rExpr=expr    # AddSub
+			| ( op=('-'|'+'|'!') )? expr_unary      # UnaryExpr
+			| lExpr=expr BITOP rExpr=expr		    # BitWise
+            ;
 
 expr_unary	: CONST							    # ConstExpr
 			| NAME '(' argument? ')'			# FuncCall
@@ -38,15 +39,13 @@ expr_unary	: CONST							    # ConstExpr
 			| '(' expr ')'					    # Par
 			;
 
-expr_bool   : expr                              # Bool
-            | expr COMPOP expr                  # Comp
-            | expr EQOP expr                    # EQ
+expr_bool   : expr                                  # Bool
+            | expr COMPOP expr                      # Comp
+            | expr EQOP expr                        # EQ
             ;
 
 // ~~~~~~~~~~ LEXER Rules (Tokens) ~~~~~~~~~~ //
 
-NEG			: '-' | '!' ;
-ADDOP       : '+' | '-' ;
 MULTOP      : '*' | '/' | '%' ;
 BITOP       : '&' | '|' | '^' ;
 COMPOP      : '<' | '>' ;
