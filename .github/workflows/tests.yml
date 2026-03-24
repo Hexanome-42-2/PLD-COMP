@@ -18,9 +18,38 @@ jobs:
           TESTS=$(find testfiles -name "*.c" | jq -R -s -c 'split("\n")[:-1]')
           echo "matrix=$TESTS" >> $GITHUB_OUTPUT
 
+  prepare-antlr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore ANTLR cache
+        id: antlr-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/antlr4-install
+          key: ${{ runner.os }}-antlr4-4.13.2
+
+      - name: Install ANTLR (if cache miss)
+        if: steps.antlr-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake unzip wget g++
+          mkdir -p ~/antlr4-install
+          cd ~/antlr4-install
+          wget -q https://www.antlr.org/download/antlr-4.13.2-complete.jar
+          wget -q https://www.antlr.org/download/antlr4-cpp-runtime-4.13.2-source.zip
+          unzip -q antlr4-cpp-runtime-4.13.2-source.zip
+          mkdir -p build
+          cd build
+          cmake -DCMAKE_INSTALL_PREFIX:PATH=$HOME/antlr4-install/ ..
+          make -j8
+          make install
+
   # Run each tests
   test-suite:
-    needs: discover-tests
+    needs: [discover-tests, prepare-antlr]
     runs-on: ubuntu-latest
 
     strategy:
@@ -31,22 +60,15 @@ jobs:
     name: Test ${{ matrix.test-file }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          mkdir ~/antlr4-install
-          cd ~/antlr4-install
-          wget https://www.antlr.org/download/antlr-4.13.2-complete.jar
-          wget https://www.antlr.org/download/antlr4-cpp-runtime-4.13.2-source.zip
-          unzip antlr4-cpp-runtime-4.13.2-source.zip
-          mkdir build
-          cd build
-          cmake -DCMAKE_INSTALL_PREFIX:PATH=~/antlr4-install/ ..
-          make -j8
-          make  install
-          
+      - name: Restore ANTLR cache
+        uses: actions/cache@v4
+        with:
+          path: ~/antlr4-install
+          key: ${{ runner.os }}-antlr4-4.13.2
+
       - name: Create config.mk
         run: |
           # Création du fichier de config avec les chemins standards Ubuntu
