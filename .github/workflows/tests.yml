@@ -72,9 +72,9 @@ jobs:
       - name: Create config.mk
         run: |
           # Création du fichier de config avec les chemins standards Ubuntu
-          echo "ANTLRJAR=/home/$(USER)/antlr4-install/antlr-4.13.2-complete.jar" > compiler/config.mk
-          echo "ANTLRINC=/home/$(USER)/antlr4-install/include/antlr4-runtime/" >> compiler/config.mk
-          echo "ANTLRLIB=/home/$(USER)/antlr4-install/lib/libantlr4-runtime.a" >> compiler/config.mk
+          echo "ANTLRJAR=$HOME/antlr4-install/antlr-4.13.2-complete.jar" > compiler/config.mk
+          echo "ANTLRINC=$HOME/antlr4-install/include/antlr4-runtime/" >> compiler/config.mk
+          echo "ANTLRLIB=$HOME/antlr4-install/lib/libantlr4-runtime.a" >> compiler/config.mk
 
       - name: Compile
         run: make -C compiler
