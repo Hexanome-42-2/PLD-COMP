@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <string>
 
-// Our contribution: function signature tracking for call verification
+// Function signature tracking for call verification
 struct FunctionSignature {
 	std::string returnType; // "int" or "void"
 	int paramCount;
