@@ -13,7 +13,7 @@ std::any StaticAnalysisVisitor::visitProg(ifccParser::ProgContext *ctx) {
 			// We encode unknown arity as -1 and skip strict arg-count checks for those functions.
 			int paramCount = -1;
 			if (f->parameters()) {
-				auto* params = dynamic_cast<ifccParser::ParamListContext*>(f->parameters());
+				ifccParser::ParamListContext* params = dynamic_cast<ifccParser::ParamListContext*>(f->parameters());
 				if (params) {
 					paramCount = params->NAME().size();
 				}
@@ -72,7 +72,7 @@ std::any StaticAnalysisVisitor::visitFunction(ifccParser::FunctionContext *ctx) 
 
 	// Our contribution: add function parameters to the function's symbol table
 	if (ctx->parameters()) {
-		auto* params = dynamic_cast<ifccParser::ParamListContext*>(ctx->parameters());
+		ifccParser::ParamListContext* params = dynamic_cast<ifccParser::ParamListContext*>(ctx->parameters());
 		if (params) {
 			for (auto* varNode : params->NAME()) {
 				std::string paramName = varNode->getText();
