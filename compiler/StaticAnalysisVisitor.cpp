@@ -4,8 +4,8 @@ std::any StaticAnalysisVisitor::visitProg(ifccParser::ProgContext *ctx) {
 	currSymbolTable = programSymbolTable;
 
 	// === Pass 1 (our contribution): Register all function signatures before analyzing bodies ===
-	for (auto* funcCtx : ctx->fonction()) {
-		auto* f = dynamic_cast<ifccParser::FunctionContext*>(funcCtx);
+	for (ifccParser::FonctionContext* funcCtx : ctx->fonction()) {
+		ifccParser::FunctionContext* f = dynamic_cast<ifccParser::FunctionContext*>(funcCtx);
 		if (f) {
 			std::string name = f->funcName->getText();
 			std::string retType = f->functype->getText(); // "int" or "void"
@@ -74,7 +74,7 @@ std::any StaticAnalysisVisitor::visitFunction(ifccParser::FunctionContext *ctx) 
 	if (ctx->parameters()) {
 		ifccParser::ParamListContext* params = dynamic_cast<ifccParser::ParamListContext*>(ctx->parameters());
 		if (params) {
-			for (auto* varNode : params->NAME()) {
+			for (antlr4::tree::TerminalNode* varNode : params->NAME()) {
 				std::string paramName = varNode->getText();
 				if (currSymbolTable->getVariable(paramName) == nullptr) {
 					currSymbolTable->addVariable(paramName);
@@ -163,7 +163,7 @@ std::any StaticAnalysisVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx) 
 	int expectedArgs = it->second.paramCount;
 	int actualArgs = 0;
 	if (ctx->argument()) {
-		auto* args = dynamic_cast<ifccParser::ArgumentListContext*>(ctx->argument());
+		ifccParser::ArgumentListContext* args = dynamic_cast<ifccParser::ArgumentListContext*>(ctx->argument());
 		if (args) {
 			actualArgs = args->expr().size();
 		}
@@ -207,7 +207,7 @@ std::any StaticAnalysisVisitor::visitFunctionCallStatement(ifccParser::FunctionC
 	int expectedArgs = it->second.paramCount;
 	int actualArgs = 0;
 	if (ctx->argument()) {
-		auto* args = dynamic_cast<ifccParser::ArgumentListContext*>(ctx->argument());
+		ifccParser::ArgumentListContext* args = dynamic_cast<ifccParser::ArgumentListContext*>(ctx->argument());
 		if (args) {
 			actualArgs = args->expr().size();
 		}
