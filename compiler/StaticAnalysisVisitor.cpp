@@ -3,7 +3,7 @@
 std::any StaticAnalysisVisitor::visitProg(ifccParser::ProgContext *ctx) {
 	currSymbolTable = programSymbolTable;
 
-	// === Pass 1 (our contribution): Register all function signatures before analyzing bodies ===
+	// === Pass 1: Register all function signatures before analyzing bodies ===
 	for (ifccParser::FonctionContext* funcCtx : ctx->fonction()) {
 		ifccParser::FunctionContext* f = dynamic_cast<ifccParser::FunctionContext*>(funcCtx);
 		if (f) {
@@ -31,13 +31,11 @@ std::any StaticAnalysisVisitor::visitProg(ifccParser::ProgContext *ctx) {
 	// === Pass 2: Visit all children for semantic analysis ===
 	visitChildren(ctx);
 
-	// Johny: check for unused variables in the global scope
 	std::vector<std::string> unusedVars = programSymbolTable->getUnusedVariables();
 	for (const std::string& varName : unusedVars) {
 		std::cerr << "Warning: Variable '" << varName << "' declared but not used." << std::endl;
 	}
 
-	// Johny: check for unused variables in each function scope
 	for (const auto& pair : *functionSymbolTables) {
 		std::vector<std::string> unusedFuncVars = pair.second->getUnusedVariables();
 		for (const std::string& varName : unusedFuncVars) {
@@ -45,7 +43,6 @@ std::any StaticAnalysisVisitor::visitProg(ifccParser::ProgContext *ctx) {
 		}
 	}
 
-	// Johny: initialize temporary variable offsets
 	programSymbolTable->InitializeTmpOffset();
 	for (const auto& pair : *functionSymbolTables) {
 		pair.second->InitializeTmpOffset();
@@ -57,20 +54,17 @@ std::any StaticAnalysisVisitor::visitProg(ifccParser::ProgContext *ctx) {
 std::any StaticAnalysisVisitor::visitFunction(ifccParser::FunctionContext *ctx) {
 	std::string functionName = ctx->funcName->getText();
 
-	// Johny: check for duplicate function names
 	if (functionSymbolTables->find(functionName) != functionSymbolTables->end()) {
 		std::cerr << "Error: Function '" << functionName << "' has already been declared." << std::endl;
 		hasError = true;
 		return 0;
 	}
 
-	// Johny: create per-function symbol table and switch scope
 	SymbolTable* functionTable = new SymbolTable();
 	(*functionSymbolTables)[functionName] = functionTable;
 	SymbolTable* oldSymbolTable = currSymbolTable;
 	currSymbolTable = functionTable;
 
-	// Our contribution: add function parameters to the function's symbol table
 	if (ctx->parameters()) {
 		ifccParser::ParamListContext* params = dynamic_cast<ifccParser::ParamListContext*>(ctx->parameters());
 		if (params) {
@@ -84,10 +78,8 @@ std::any StaticAnalysisVisitor::visitFunction(ifccParser::FunctionContext *ctx) 
 		}
 	}
 
-	// Johny: visit the function block to populate symbol table and check errors
 	visit(ctx->block());
 
-	// Johny: restore the previous symbol table
 	currSymbolTable = oldSymbolTable;
 	return 0;
 }
@@ -106,7 +98,6 @@ std::any StaticAnalysisVisitor::visitDeclareStatement(ifccParser::DeclareStateme
 	return 0;
 }
 
-// Our contribution: int x = expr;
 std::any StaticAnalysisVisitor::visitDeclareAssignStatement(ifccParser::DeclareAssignStatementContext *ctx) {
 	std::string varName = ctx->NAME()->getText();
 
@@ -147,7 +138,6 @@ std::any StaticAnalysisVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
 	return 0;
 }
 
-// Our contribution: function call in expression context (e.g. return add(1,2); or int x = add(1,2);)
 std::any StaticAnalysisVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx) {
 	std::string funcName = ctx->NAME()->getText();
 
@@ -191,7 +181,6 @@ std::any StaticAnalysisVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx) 
 	return 0;
 }
 
-// Our contribution: standalone function call (e.g. donothing();)
 std::any StaticAnalysisVisitor::visitFunctionCallStatement(ifccParser::FunctionCallStatementContext *ctx) {
 	std::string funcName = ctx->NAME()->getText();
 
