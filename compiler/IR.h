@@ -4,10 +4,18 @@
 #include <string>
 #include <iostream>
 #include <initializer_list>
+#include <algorithm>
 
 // Declarations from the parser -- replace with your own
 #include "SymbolTable.h"
 #include "CFG.h"
+
+// x86-64 ABI argument registers (in order), shared by CFG and CodeGenVisitor
+const std::vector<std::string> kArgRegs = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};
+
+inline bool isRegister(const std::string& name) {
+    return name == "eax" || std::find(kArgRegs.begin(), kArgRegs.end(), name) != kArgRegs.end();
+}
 
 class BasicBlock;
 class DefFonction;

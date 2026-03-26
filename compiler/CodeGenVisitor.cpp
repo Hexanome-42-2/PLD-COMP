@@ -1,8 +1,5 @@
 #include "CodeGenVisitor.h"
 
-namespace {
-const std::vector<std::string> kArgRegs = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};
-}
 
 antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx) {
     visitChildren(ctx);
