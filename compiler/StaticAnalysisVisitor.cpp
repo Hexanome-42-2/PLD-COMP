@@ -1,7 +1,7 @@
 #include "StaticAnalysisVisitor.h"
 
 std::any StaticAnalysisVisitor::visitProg(ifccParser::ProgContext *ctx) {
-	currSymbolTable = programSymbolTable; // Johny: start with global scope
+	currSymbolTable = programSymbolTable;
 
 	// === Pass 1 (our contribution): Register all function signatures before analyzing bodies ===
 	for (auto* funcCtx : ctx->fonction()) {

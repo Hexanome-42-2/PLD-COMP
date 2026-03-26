@@ -54,6 +54,6 @@ class CFGContainer : CFG {
 		CFG* get_cfg(std::string name);
 
 		virtual void gen_asm(std::ostream &o);
-		virtual void gen_asm_prologue(std::ostream &o);
-		virtual void gen_asm_epilogue(std::ostream &o);
+		virtual void gen_asm_prologue(std::ostream &o) {};
+		virtual void gen_asm_epilogue(std::ostream &o) {};
 };

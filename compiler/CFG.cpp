@@ -97,9 +97,3 @@ void CFGContainer::gen_asm(std::ostream &output) {
     }
     gen_asm_epilogue(output);
 }
-
-void CFGContainer::gen_asm_prologue(std::ostream &output) {
-}
-
-void CFGContainer::gen_asm_epilogue(std::ostream &output) {
-}
