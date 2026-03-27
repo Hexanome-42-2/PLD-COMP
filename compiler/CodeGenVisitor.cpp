@@ -18,9 +18,9 @@ antlrcpp::Any CodeGenVisitor::visitFunction(ifccParser::FunctionContext *ctx) {
 
 	// Materialize incoming register arguments into local parameter slots.
 	if (ctx->parameters()) {
-		auto* params = dynamic_cast<ifccParser::ParamListContext*>(ctx->parameters());
+		ifccParser::ParamListContext* params = dynamic_cast<ifccParser::ParamListContext*>(ctx->parameters());
 		if (params) {
-			auto paramNames = params->NAME();
+			std::vector<antlr4::tree::TerminalNode*> paramNames = params->NAME();
 			for (size_t i = 0; i < paramNames.size() && i < kArgRegs.size(); ++i) {
 				currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT,
 					{paramNames[i]->getText(), kArgRegs[i]});
@@ -55,10 +55,10 @@ antlrcpp::Any CodeGenVisitor::visitDeclareAssignStatement(ifccParser::DeclareAss
 
 antlrcpp::Any CodeGenVisitor::visitFunctionCallStatement(ifccParser::FunctionCallStatementContext *ctx) {
 	if (ctx->argument()) {
-		auto* args = dynamic_cast<ifccParser::ArgumentListContext*>(ctx->argument());
+		ifccParser::ArgumentListContext* args = dynamic_cast<ifccParser::ArgumentListContext*>(ctx->argument());
 		if (args) {
 			std::vector<std::string> argTemps;
-			for (auto* argExpr : args->expr()) {
+			for (ifccParser::ExprContext* argExpr : args->expr()) {
 				visit(argExpr);
 				const std::string tmpVar = currentCFG->create_new_tempvar(Type::INT);
 				currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {tmpVar, "eax"});
@@ -113,10 +113,10 @@ antlrcpp::Any CodeGenVisitor::visitUnaryExpr(ifccParser::UnaryExprContext *ctx) 
 
 antlrcpp::Any CodeGenVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx) {
 	if (ctx->argument()) {
-		auto* args = dynamic_cast<ifccParser::ArgumentListContext*>(ctx->argument());
+		ifccParser::ArgumentListContext* args = dynamic_cast<ifccParser::ArgumentListContext*>(ctx->argument());
 		if (args) {
 			std::vector<std::string> argTemps;
-			for (auto* argExpr : args->expr()) {
+			for (ifccParser::ExprContext* argExpr : args->expr()) {
 				visit(argExpr);
 				const std::string tmpVar = currentCFG->create_new_tempvar(Type::INT);
 				currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {tmpVar, "eax"});
