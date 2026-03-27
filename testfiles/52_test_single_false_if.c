@@ -1,0 +1,10 @@
+int main() {
+    int a;
+    a = 0;
+
+    if (2 < 1) {
+        a = 5;
+    }
+
+    return a;
+}

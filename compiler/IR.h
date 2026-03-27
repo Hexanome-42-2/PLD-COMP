@@ -40,13 +40,16 @@ class IRInstr {
 		negl,
         plus,
         notl,
-		call, 
+		call,
 		cmp_eq,
+		cmp_ne,
 		cmp_lt,
-		cmp_le,
+	    cmp_gt,
         band,
         bor,
-        bxor
+        bxor,
+	    jmp,
+	    je
 	} Operation;
 
 

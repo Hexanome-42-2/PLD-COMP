@@ -4,7 +4,7 @@
 #include <vector>
 #include <iostream>
 
-enum Type {INT, ERROR};
+enum Type {INT, VOID, ERROR};
 
 // Structure to store variable metadata
 struct VarInfo {

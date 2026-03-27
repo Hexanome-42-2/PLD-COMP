@@ -42,7 +42,7 @@ void IRInstr::gen_asm(std::ostream &output) {
         case IRInstr::Operation::mul:
             output << "    imull %edx, %eax\n";
             break;
-        
+
         case IRInstr::Operation::div:
             output << "    movl " << bb->cfg->IR_reg_to_asm(params[0]) << ", %eax\n";
             output << "    cltd\n";
@@ -69,20 +69,20 @@ void IRInstr::gen_asm(std::ostream &output) {
             //output << "    movl %eax, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
             output << "    negl %eax\n";
             break;
-        
+
         case IRInstr::Operation::call:
             output << "    call " << params[0] << "\n";
             break;
 
         case IRInstr::Operation::plus:
             break;
-        
+
 		case IRInstr::Operation::notl:
             output << "    cmpl $0, %eax\n";
             output << "	   sete	%al\n";
             output << "	   movzbl %al, %eax\n";
             break;
-        
+
         case IRInstr::Operation::band:
             output << "    andl %edx, %eax\n";
             break;
@@ -95,11 +95,32 @@ void IRInstr::gen_asm(std::ostream &output) {
             output << "    xorl %edx, %eax\n";
             break;
 
-        /*
-		cmp_eq,
-		cmp_lt,
-		cmp_le
-        */
+        case IRInstr::Operation::cmp_eq:
+            output << "    cmpl " << bb->cfg->IR_reg_to_asm(params[0]) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            output << "    sete %al\n";
+            output << "    movzbl %al, %eax\n";
+            break;
+        case IRInstr::Operation::cmp_ne:
+            output << "    cmpl " << bb->cfg->IR_reg_to_asm(params[0]) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            output << "    setne %al\n";
+            output << "    movzbl %al, %eax\n";
+            break;
+        case IRInstr::Operation::cmp_lt:
+            output << "    cmpl " << bb->cfg->IR_reg_to_asm(params[0]) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            output << "    setl %al\n";
+            output << "    movzbl %al, %eax\n";
+            break;
+        case IRInstr::Operation::cmp_gt:
+            output << "    cmpl " << bb->cfg->IR_reg_to_asm(params[0]) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            output << "    setg %al\n";
+            output << "    movzbl %al, %eax\n";
+            break;
+        case IRInstr::Operation::jmp:
+            output << "    jmp " << params[0] << "\n";
+            break;
+        case IRInstr::Operation::je:
+            output << "    je " << params[0] << "\n";
+            break;
     }
 }
 
