@@ -15,12 +15,13 @@ struct VarInfo {
 
 class SymbolTable {
     private:
+        SymbolTable* parent; // Pointer to the parent symbol table (for nested scopes)
         std::unordered_map<std::string, VarInfo> symbolTable;
         int varOffset = 0; // Start at 0 and decrement by 4 for each new variable
         int tmpOffset = 0; // Start at 0 and increment by 4 for each new temporary variable
         int maxOffset = 0;
     public:
-        SymbolTable();
+        SymbolTable(SymbolTable* parent = nullptr) : parent(parent) {};
         ~SymbolTable();
         void addVariable(const std::string& name);
         const std::string addTemporaryVariable();

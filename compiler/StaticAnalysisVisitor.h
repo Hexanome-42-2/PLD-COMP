@@ -9,7 +9,7 @@
 
 // Function signature tracking for call verification
 struct FunctionSignature {
-	std::string returnType; // "int" or "void"
+	Type returnType;
 	int paramCount;
 };
 

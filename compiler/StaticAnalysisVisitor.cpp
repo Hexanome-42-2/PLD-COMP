@@ -5,27 +5,25 @@ std::any StaticAnalysisVisitor::visitProg(ifccParser::ProgContext *ctx) {
 
 	// === Pass 1: Register all function signatures before analyzing bodies ===
 	for (ifccParser::FonctionContext* funcCtx : ctx->fonction()) {
-		ifccParser::FunctionContext* f = dynamic_cast<ifccParser::FunctionContext*>(funcCtx);
-		if (f) {
-			std::string name = f->funcName->getText();
-			std::string retType = f->functype->getText(); // "int" or "void"
-			// In C, f() means unspecified parameter list (not strictly zero parameters).
-			// We encode unknown arity as -1 and skip strict arg-count checks for those functions.
-			int paramCount = -1;
-			if (f->parameters()) {
-				ifccParser::ParamListContext* params = dynamic_cast<ifccParser::ParamListContext*>(f->parameters());
-				if (params) {
-					paramCount = params->NAME().size();
-				}
-			}
+        std::string name = funcCtx->funcName->getText();
+        std::string retType = funcCtx->functype->getText(); // "int" or "void"
+        Type retTypeEnum = stringToType(retType); // Convert to Type enum
+        // In C, funcCtx() means unspecified parameter list (not strictly zero parameters).
+        // We encode unknown arity as -1 and skip strict arg-count checks for those functions.
+        int paramCount = -1;
+        if (funcCtx->parameters()) {
+            ifccParser::ParamListContext* params = dynamic_cast<ifccParser::ParamListContext*>(funcCtx->parameters());
+            if (params) {
+                paramCount = params->NAME().size();
+            }
+        }
 
-			if (functionSignatures.count(name)) {
-				std::cerr << "Error: Function '" << name << "' already defined." << std::endl;
-				hasError = true;
-			} else {
-				functionSignatures[name] = {retType, paramCount};
-			}
-		}
+        if (functionSignatures.count(name)) {
+            std::cerr << "Error: Function '" << name << "' already defined." << std::endl;
+            hasError = true;
+        } else {
+            functionSignatures[name] = {retTypeEnum, paramCount};
+        }
 	}
 
 	// === Pass 2: Visit all children for semantic analysis ===
@@ -157,7 +155,7 @@ std::any StaticAnalysisVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx) 
 	}
 
 	// Check: void function cannot be used in an expression
-	if (it->second.returnType == "void") {
+	if (it->second.returnType == VOID) {
 		std::cerr << "Error: Void function '" << funcName
 				  << "' cannot be used in an expression." << std::endl;
 		hasError = true;
