@@ -1,11 +1,11 @@
 int foo() {
 	int a;
-	a = 63;
+	a = 200;
 	return a;
 }
 
 int main() {
 	int a;
-	a = foo();
-	return a;
+	a = 100;
+	return foo() + a;
 }

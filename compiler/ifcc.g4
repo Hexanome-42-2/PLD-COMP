@@ -2,24 +2,41 @@ grammar ifcc;
 
 axiom : prog EOF ;
 
-prog		: 'int' 'main' '(' ')' '{' statement+ '}' ;
+prog 		: fonction+ ;
 
-// 2. Defines what a statement is
-statement	: 'int' VAR (',' VAR)* ';'		        # DeclareStatement
-			| VAR '=' expr ';'				        # AssignStatement
-			| RETURN expr ';'                       # ReturnStatement
+fonction  	: functype=TYPE funcName=NAME '(' parameters? ')' block		# Function
 			;
 
-// 3. Defines what an expression is
+block		: '{' statement* '}'				# BlockStatement
+			;
+
+// 1. Defines function parameters (each param has explicit type: int a, int b)
+parameters	: TYPE NAME (',' TYPE NAME)*		# ParamList
+			;
+
+// 2. Defines function call arguments
+argument	: expr (',' expr)*					# ArgumentList
+			;
+
+// 3. Defines what a statement is
+statement	: TYPE NAME '=' expr ';'			# DeclareAssignStatement
+			| TYPE NAME (',' NAME)* ';'			# DeclareStatement
+			| NAME '=' expr ';'				    # AssignStatement
+			| NAME '(' argument? ')' ';'		# FunctionCallStatement
+			| RETURN expr? ';'                  # ReturnStatement
+			;
+
+// 4. Defines what an expression is
 expr		: lExpr=expr MULTOP rExpr=expr		    # MultDiv
 			| lExpr=expr op=('-'|'+') rExpr=expr    # AddSub
 			| ( op=('-'|'+'|'!') )? expr_unary      # UnaryExpr
 			| lExpr=expr BITOP rExpr=expr		    # BitWise
             ;
 
-expr_unary	: CONST							        # ConstExpr
-			| VAR							        # VarExpr
-			| '(' expr ')'					        # Par
+expr_unary	: CONST							    # ConstExpr
+			| NAME '(' argument? ')'			# FuncCall
+			| NAME							    # VarExpr
+			| '(' expr ')'					    # Par
 			;
 
 expr_bool   : expr                                  # Bool
@@ -34,8 +51,10 @@ BITOP       : '&' | '|' | '^' ;
 COMPOP      : '<' | '>' ;
 EQOP        : '==' | '!=' ;
 RETURN		: 'return' ;
-VAR			: [a-zA-Z_] [a-zA-Z0-9_]* ;
+TYPE		: 'int' | 'void' ;
+NAME		: [a-zA-Z_] [a-zA-Z0-9_]* ;
 CONST 		: [0-9]+ ;
 COMMENT 	: '/*' .*? '*/' -> skip ;
+LINE_COMMENT: '//' ~[\r\n]* -> skip ;
 DIRECTIVE 	: '#' .*? '\n' -> skip ;
 WS    		: [ \t\r\n] -> channel(HIDDEN);

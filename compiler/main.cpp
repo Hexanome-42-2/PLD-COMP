@@ -2,6 +2,8 @@
 #include <fstream>
 #include <sstream>
 #include <cstdlib>
+#include <unordered_map>
+#include <string>
 
 #include "antlr4-runtime.h"
 #include "generated/ifccLexer.h"
@@ -12,6 +14,7 @@
 #include "CodeGenVisitor.h"
 #include "StaticAnalysisVisitor.h"
 #include "IR.h"
+#include "CFG.h"
 
 using namespace antlr4;
 using namespace std;
@@ -44,14 +47,15 @@ int main(int argn, const char **argv) {
 	ifccParser parser(&tokens);
 	tree::ParseTree* tree = parser.axiom();
 
-	if(parser.getNumberOfSyntaxErrors() != 0)
-	{
+	if(parser.getNumberOfSyntaxErrors() != 0) {
 		cerr << "error: syntax error during parsing" << endl;
 		exit(1);
 	}
 
 	SymbolTable symbolTable;
-	StaticAnalysisVisitor staticAnalysis(&symbolTable);
+	std::unordered_map<std::string, SymbolTable *> functionSymbolTables; // Map to hold symbol tables for each function
+
+	StaticAnalysisVisitor staticAnalysis(&symbolTable, &functionSymbolTables);
 	staticAnalysis.visit(tree);
 
 	if (staticAnalysis.hasError) {
@@ -59,11 +63,12 @@ int main(int argn, const char **argv) {
 		return 1;
 	}
 
-	CFG cfg(&symbolTable);
-	CodeGenVisitor codeGen(&cfg);
+	CFGContainer cfgContainer(&functionSymbolTables);
+
+	CodeGenVisitor codeGen(&cfgContainer, &functionSymbolTables);
 	codeGen.visit(tree);
 
-	cfg.gen_asm(cout);
+	cfgContainer.gen_asm(cout);
 
 	return 0;
 }

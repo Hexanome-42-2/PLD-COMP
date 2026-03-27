@@ -6,24 +6,34 @@
 #include "StaticAnalysisVisitor.h"
 #include "SymbolTable.h"
 #include "IR.h"
+#include "CFG.h"
 #include <map>
 #include <string>
+#include <unordered_map>
 
 class  CodeGenVisitor : public ifccBaseVisitor {
 	public:
-		CFG * cfg;
-		
-		CodeGenVisitor(CFG * cfg) {
-			this->cfg = cfg;
-		};
+		CFG *currentCFG = nullptr; // Current CFG being accessed
+		CFGContainer *cfgContainer;
+		std::unordered_map<std::string, SymbolTable*> *functionSymbolTables;
+
+		CodeGenVisitor(
+			CFGContainer *cfgContainer,
+			std::unordered_map<std::string, SymbolTable*> *functionSymbolTables
+		) : cfgContainer(cfgContainer),
+			functionSymbolTables(functionSymbolTables) {};
 
 		virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
+		virtual antlrcpp::Any visitFunction(ifccParser::FunctionContext *ctx) override;
 		virtual antlrcpp::Any visitDeclareStatement(ifccParser::DeclareStatementContext *ctx) override;
+		virtual antlrcpp::Any visitDeclareAssignStatement(ifccParser::DeclareAssignStatementContext *ctx) override;
 		virtual antlrcpp::Any visitAssignStatement(ifccParser::AssignStatementContext *ctx) override;
+		virtual antlrcpp::Any visitFunctionCallStatement(ifccParser::FunctionCallStatementContext *ctx) override;
 		virtual antlrcpp::Any visitReturnStatement(ifccParser::ReturnStatementContext *ctx) override;
 
 		// Expressions
 		virtual antlrcpp::Any visitUnaryExpr(ifccParser::UnaryExprContext *ctx) override;
+		virtual antlrcpp::Any visitFuncCall(ifccParser::FuncCallContext *ctx) override;
 		virtual antlrcpp::Any visitConstExpr(ifccParser::ConstExprContext *ctx) override;
 		virtual antlrcpp::Any visitVarExpr(ifccParser::VarExprContext *ctx) override;
 		virtual antlrcpp::Any visitAddSub(ifccParser::AddSubContext *ctx) override;
