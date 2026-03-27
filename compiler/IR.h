@@ -10,8 +10,19 @@
 #include "SymbolTable.h"
 #include "CFG.h"
 
+
+#if defined(__x86_64__) || defined(_M_X64)
 // x86-64 ABI argument registers (in order), shared by CFG and CodeGenVisitor
-const std::vector<std::string> kArgRegs = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};
+inline const std::vector<std::string> kArgRegs = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};
+inline const std::string kReturnReg = "eax";
+#elif defined(__aarch64__) || defined(_M_ARM64)
+// ARM64 ABI argument registers (in order), shared by CFG and CodeGenVisitor
+inline const std::vector<std::string> kArgRegs = {"w0", "w1", "w2", "w3", "w4", "w5", "w6", "w7"};
+inline const std::string kReturnReg = "w0";
+#else
+#error Architecture not supported. Please define kArgRegs and kReturnReg for your target architecture.
+#endif
+
 
 inline bool isRegister(const std::string& name) {
     return name == "eax" || std::find(kArgRegs.begin(), kArgRegs.end(), name) != kArgRegs.end();
