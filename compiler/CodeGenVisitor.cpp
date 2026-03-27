@@ -37,11 +37,6 @@ antlrcpp::Any CodeGenVisitor::visitFunction(ifccParser::FunctionContext *ctx) {
 	return 0;
 }
 
-antlrcpp::Any CodeGenVisitor::visitBlock(ifccParser::BlockContext *ctx) {
-	visitChildren(ctx);
-	return 0;
-}
-
 antlrcpp::Any CodeGenVisitor::visitDeclareStatement(ifccParser::DeclareStatementContext *ctx) {
     // Declaration only, no code to generate
 	return 0;
@@ -101,19 +96,19 @@ antlrcpp::Any CodeGenVisitor::visitReturnStatement(ifccParser::ReturnStatementCo
 }
 
 antlrcpp::Any CodeGenVisitor::visitIfStatement(ifccParser::IfStatementContext *ctx) {
-    std::string statement_name = cfg->new_BB_name();
-    BasicBlock *test_block = new BasicBlock(cfg, statement_name + "_test");
-    BasicBlock *then_block = new BasicBlock(cfg, statement_name + "_then");
+    std::string statement_name = currentCFG->new_BB_name();
+    BasicBlock *test_block = new BasicBlock(currentCFG, statement_name + "_test");
+    BasicBlock *then_block = new BasicBlock(currentCFG, statement_name + "_then");
     BasicBlock *else_block = nullptr;
 
     int else_flag = (ctx->elst != nullptr || ctx->elbl != nullptr);
     if (else_flag) {
-        else_block = new BasicBlock(cfg, statement_name + "_else");
+        else_block = new BasicBlock(currentCFG, statement_name + "_else");
     }
 
-    BasicBlock *end_if_block = new BasicBlock(cfg, cfg->new_BB_name());
+    BasicBlock *end_if_block = new BasicBlock(currentCFG, currentCFG->new_BB_name());
 
-    cfg->add_bb(test_block);
+    currentCFG->add_bb(test_block);
     visit(ctx->expr());
 
     test_block->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {"edx", "1"});
@@ -127,8 +122,8 @@ antlrcpp::Any CodeGenVisitor::visitIfStatement(ifccParser::IfStatementContext *c
     }
 
     // True
-    cfg->add_bb(then_block);
-    test_block->exit_true = cfg->current_bb;
+    currentCFG->add_bb(then_block);
+    test_block->exit_true = currentCFG->current_bb;
 
     if (ctx->ifbl != nullptr) {
         visit(ctx->ifbl);
@@ -137,12 +132,12 @@ antlrcpp::Any CodeGenVisitor::visitIfStatement(ifccParser::IfStatementContext *c
         visit(ctx->ifst);
     }
 
-    cfg->current_bb->add_IRInstr(IRInstr::Operation::jmp, Type::VOID, {end_if_block->label});
+    currentCFG->current_bb->add_IRInstr(IRInstr::Operation::jmp, Type::VOID, {end_if_block->label});
 
     // False
     if (else_flag) {
-        cfg->add_bb(else_block);
-        test_block->exit_false = cfg->current_bb;
+        currentCFG->add_bb(else_block);
+        test_block->exit_false = currentCFG->current_bb;
 
         if (ctx->elbl != nullptr) {
             visit(ctx->elbl);
@@ -151,21 +146,21 @@ antlrcpp::Any CodeGenVisitor::visitIfStatement(ifccParser::IfStatementContext *c
             visit(ctx->elst);
         }
 
-        cfg->current_bb->add_IRInstr(IRInstr::Operation::jmp, Type::VOID, {end_if_block->label});
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::jmp, Type::VOID, {end_if_block->label});
     }
 
-    cfg->add_bb(end_if_block);
+    currentCFG->add_bb(end_if_block);
 
     return 0;
 }
 
 antlrcpp::Any CodeGenVisitor::visitWhileStatement(ifccParser::WhileStatementContext *ctx) {
-	std::string statement_name = cfg->new_BB_name();
-    BasicBlock *test_block = new BasicBlock(cfg, statement_name + "_test");
-    BasicBlock *then_block = new BasicBlock(cfg, statement_name + "_then");
-    BasicBlock *end_while_block = new BasicBlock(cfg, cfg->new_BB_name());
+	std::string statement_name = currentCFG->new_BB_name();
+    BasicBlock *test_block = new BasicBlock(currentCFG, statement_name + "_test");
+    BasicBlock *then_block = new BasicBlock(currentCFG, statement_name + "_then");
+    BasicBlock *end_while_block = new BasicBlock(currentCFG, currentCFG->new_BB_name());
 
-    cfg->add_bb(test_block);
+    currentCFG->add_bb(test_block);
     visit(ctx->expr());
 
     test_block->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {"edx", "1"});
@@ -174,8 +169,8 @@ antlrcpp::Any CodeGenVisitor::visitWhileStatement(ifccParser::WhileStatementCont
     test_block->add_IRInstr(IRInstr::Operation::jmp, Type::VOID, {end_while_block->label});
 
     // While loop
-    cfg->add_bb(then_block);
-    test_block->exit_true = cfg->current_bb;
+    currentCFG->add_bb(then_block);
+    test_block->exit_true = currentCFG->current_bb;
 
     if (ctx->whbl != nullptr) {
         visit(ctx->whbl);
@@ -184,9 +179,9 @@ antlrcpp::Any CodeGenVisitor::visitWhileStatement(ifccParser::WhileStatementCont
         visit(ctx->whst);
     }
 
-    cfg->current_bb->add_IRInstr(IRInstr::Operation::jmp, Type::VOID, {test_block->label});
+    currentCFG->current_bb->add_IRInstr(IRInstr::Operation::jmp, Type::VOID, {test_block->label});
 
-    cfg->add_bb(end_while_block);
+    currentCFG->add_bb(end_while_block);
 
     return 0;
 }
