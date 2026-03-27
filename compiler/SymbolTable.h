@@ -6,6 +6,8 @@
 
 enum Type {INT, VOID, ERROR};
 
+Type stringToType(const std::string& typeStr);
+
 // Structure to store variable metadata
 struct VarInfo {
 	int index;	// Memory offset (multiple of 4)
@@ -16,13 +18,15 @@ struct VarInfo {
 class SymbolTable {
     private:
         SymbolTable* parent; // Pointer to the parent symbol table (for nested scopes)
+        std::string stName; // SymbolTableName
         std::unordered_map<std::string, VarInfo> symbolTable;
         int varOffset = 0; // Start at 0 and decrement by 4 for each new variable
         int tmpOffset = 0; // Start at 0 and increment by 4 for each new temporary variable
         int maxOffset = 0;
     public:
-        SymbolTable(SymbolTable* parent = nullptr) : parent(parent) {};
+        SymbolTable(SymbolTable* parent = nullptr, std::string name = "global") : parent(parent), stName(name) {};
         ~SymbolTable();
+        std::string getName() const { return stName; }
         void addVariable(const std::string& name);
         const std::string addTemporaryVariable();
         VarInfo* getVariable(const std::string& name);

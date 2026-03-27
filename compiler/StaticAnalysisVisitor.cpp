@@ -5,25 +5,28 @@ std::any StaticAnalysisVisitor::visitProg(ifccParser::ProgContext *ctx) {
 
 	// === Pass 1: Register all function signatures before analyzing bodies ===
 	for (ifccParser::FonctionContext* funcCtx : ctx->fonction()) {
-        std::string name = funcCtx->funcName->getText();
-        std::string retType = funcCtx->functype->getText(); // "int" or "void"
-        Type retTypeEnum = stringToType(retType); // Convert to Type enum
-        // In C, funcCtx() means unspecified parameter list (not strictly zero parameters).
-        // We encode unknown arity as -1 and skip strict arg-count checks for those functions.
-        int paramCount = -1;
-        if (funcCtx->parameters()) {
-            ifccParser::ParamListContext* params = dynamic_cast<ifccParser::ParamListContext*>(funcCtx->parameters());
-            if (params) {
-                paramCount = params->NAME().size();
-            }
-        }
+		ifccParser::FunctionContext* f = dynamic_cast<ifccParser::FunctionContext*>(funcCtx);
+		if (f) {
+			std::string name = f->funcName->getText();
+			std::string retType = f->functype->getText();
+            Type retTypeEnum = stringToType(retType);
+			// In C, f() means unspecified parameter list (not strictly zero parameters).
+			// We encode unknown arity as -1 and skip strict arg-count checks for those functions.
+			int paramCount = -1;
+			if (f->parameters()) {
+				ifccParser::ParamListContext* params = dynamic_cast<ifccParser::ParamListContext*>(f->parameters());
+				if (params) {
+					paramCount = params->NAME().size();
+				}
+			}
 
-        if (functionSignatures.count(name)) {
-            std::cerr << "Error: Function '" << name << "' already defined." << std::endl;
-            hasError = true;
-        } else {
-            functionSignatures[name] = {retTypeEnum, paramCount};
-        }
+			if (functionSignatures.count(name)) {
+				std::cerr << "Error: Function '" << name << "' already defined." << std::endl;
+				hasError = true;
+			} else {
+				functionSignatures[name] = {retTypeEnum, paramCount};
+			}
+		}
 	}
 
 	// === Pass 2: Visit all children for semantic analysis ===
@@ -31,18 +34,18 @@ std::any StaticAnalysisVisitor::visitProg(ifccParser::ProgContext *ctx) {
 
 	std::vector<std::string> unusedVars = programSymbolTable->getUnusedVariables();
 	for (const std::string& varName : unusedVars) {
-		std::cerr << "Warning: Variable '" << varName << "' declared but not used." << std::endl;
+		std::cerr << "Warning: Variable '" << varName << "' declared but might not be used." << std::endl;
 	}
 
-	for (const auto& pair : *functionSymbolTables) {
+	for (const auto& pair : *allSymbolTables) {
 		std::vector<std::string> unusedFuncVars = pair.second->getUnusedVariables();
 		for (const std::string& varName : unusedFuncVars) {
-			std::cerr << "Warning: Variable '" << varName << "' declared in function '" << pair.first << "' but not used." << std::endl;
+			std::cerr << "Warning: Variable '" << varName << "' declared in function '" << pair.first << "' but might not be used." << std::endl;
 		}
 	}
 
 	programSymbolTable->InitializeTmpOffset();
-	for (const auto& pair : *functionSymbolTables) {
+	for (const auto& pair : *allSymbolTables) {
 		pair.second->InitializeTmpOffset();
 	}
 
@@ -52,14 +55,14 @@ std::any StaticAnalysisVisitor::visitProg(ifccParser::ProgContext *ctx) {
 std::any StaticAnalysisVisitor::visitFunction(ifccParser::FunctionContext *ctx) {
 	std::string functionName = ctx->funcName->getText();
 
-	if (functionSymbolTables->find(functionName) != functionSymbolTables->end()) {
+	if (allSymbolTables->find(functionName) != allSymbolTables->end()) {
 		std::cerr << "Error: Function '" << functionName << "' has already been declared." << std::endl;
 		hasError = true;
 		return 0;
 	}
 
 	SymbolTable* functionTable = new SymbolTable();
-	(*functionSymbolTables)[functionName] = functionTable;
+	(*allSymbolTables)[functionName] = functionTable;
 	SymbolTable* oldSymbolTable = currSymbolTable;
 	currSymbolTable = functionTable;
 
@@ -68,18 +71,32 @@ std::any StaticAnalysisVisitor::visitFunction(ifccParser::FunctionContext *ctx) 
 		if (params) {
 			for (antlr4::tree::TerminalNode* varNode : params->NAME()) {
 				std::string paramName = varNode->getText();
-				if (currSymbolTable->getVariable(paramName) == nullptr) {
-					currSymbolTable->addVariable(paramName);
-					currSymbolTable->MarkUsed(paramName); // params are considered "used"
-				}
+				currSymbolTable->addVariable(paramName);
+//					currSymbolTable->MarkUsed(paramName); // are params considered "used" ?
 			}
 		}
 	}
-
-	visit(ctx->block());
+    // Visit the children of the block to not recreate the symbol table for the function body
+	visitChildren(ctx->block());
 
 	currSymbolTable = oldSymbolTable;
 	return 0;
+}
+
+std::any StaticAnalysisVisitor::visitBlock(ifccParser::BlockContext *ctx) {
+    SymbolTable* blockTable = new SymbolTable(currSymbolTable);
+    SymbolTable* oldSymbolTable = currSymbolTable;
+    currSymbolTable = blockTable;
+
+    std::string blockName = oldSymbolTable->getName() + "_" + std::to_string(currIndex++);
+    (*allSymbolTables)[blockName] = blockTable;
+    //debug 
+    //blockTable->printSymbolTable();
+
+    visitChildren(ctx);
+
+    currSymbolTable = oldSymbolTable;
+    return 0;
 }
 
 std::any StaticAnalysisVisitor::visitDeclareStatement(ifccParser::DeclareStatementContext *ctx) {

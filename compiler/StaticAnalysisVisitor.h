@@ -18,7 +18,7 @@ class StaticAnalysisVisitor : public ifccBaseVisitor {
 		// Johny's per-function scope management
 		SymbolTable *programSymbolTable;
 		SymbolTable *currSymbolTable;
-		std::unordered_map<std::string, SymbolTable*> *functionSymbolTables;
+		std::unordered_map<std::string, SymbolTable*> *allSymbolTables;
 
 		int currIndex = 0;
 		bool hasError = false;
@@ -27,11 +27,12 @@ class StaticAnalysisVisitor : public ifccBaseVisitor {
 		std::unordered_map<std::string, FunctionSignature> functionSignatures;
 
 		StaticAnalysisVisitor(SymbolTable *table, std::unordered_map<std::string, SymbolTable*> *funcTables)
-			: programSymbolTable(table), functionSymbolTables(funcTables) {};
+			: programSymbolTable(table), allSymbolTables(funcTables) {};
 		~StaticAnalysisVisitor() = default;
 
 		virtual std::any visitProg(ifccParser::ProgContext *ctx) override;
 		virtual std::any visitFunction(ifccParser::FunctionContext *ctx) override;
+		virtual std::any visitBlock(ifccParser::BlockContext *ctx) override;
 		virtual std::any visitDeclareStatement(ifccParser::DeclareStatementContext *ctx) override;
 		virtual std::any visitAssignStatement(ifccParser::AssignStatementContext *ctx) override;
 		virtual std::any visitVarExpr(ifccParser::VarExprContext *ctx) override;
