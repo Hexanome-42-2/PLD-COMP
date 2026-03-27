@@ -19,6 +19,8 @@ class CFG {
 
 	void add_bb(BasicBlock* bb); //
 
+	std::string get_name() const { return name; }
+
 	// x86 code generation: could be encapsulated in a processor class in a retargetable compiler
 	std::string IR_reg_to_asm(std::string reg); /**< helper method: inputs a IR reg or input variable, returns e.g. "-24(%rbp)" for the proper value of 24 */
 	virtual void gen_asm(std::ostream& o);

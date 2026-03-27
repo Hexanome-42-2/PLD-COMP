@@ -85,6 +85,9 @@ antlrcpp::Any CodeGenVisitor::visitReturnStatement(ifccParser::ReturnStatementCo
 		visit(ctx->expr());
 	}
 
+	// Add jump to function exit block
+	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::jmp, Type::VOID, {currentCFG->get_name() + "_exit"});
+
 	return 0;
 }
 
