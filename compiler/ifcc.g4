@@ -19,23 +19,26 @@ argument	: expr (',' expr)*					# ArgumentList
 			;
 
 // 3. Defines what a statement is
-statement	: TYPE NAME '=' expr ';'			# DeclareAssignStatement
-			| TYPE NAME (',' NAME)* ';'			# DeclareStatement
-			| NAME '=' expr ';'				    # AssignStatement
-			| NAME '(' argument? ')' ';'		# FunctionCallStatement
-			| RETURN expr? ';'                  # ReturnStatement
+statement	: TYPE assignStatement (',' assignStatement)* ';'	# DeclareStatement
+			| NAME '(' argument? ')' ';'		                # FunctionCallStatement
+			| RETURN expr? ';'                                  # ReturnStatement
 			| 'if' '(' expr ')' ( ifst=statement | ifbl=block )
-			  ('else' ( elst=statement | elbl=block ))?   # IfStatement
+			  ('else' ( elst=statement | elbl=block ))?         # IfStatement
 			| 'while' '(' expr ')'
-			  ( whst=statement | whbl=block )             # WhileStatement			;
+			  ( whst=statement | whbl=block )                   # WhileStatement
+			| expr ';'								            # ExprStatement
+			;
+
+assignStatement : NAME ('=' expr)? ;
 
 // 4. Defines what an expression is
 expr		: lExpr=expr MULTOP rExpr=expr		    # MultDiv
 			| lExpr=expr op=('-'|'+') rExpr=expr    # AddSub
 			| ( op=('-'|'+'|'!') )? expr_unary      # UnaryExpr
 			| lExpr=expr BITOP rExpr=expr		    # BitWise
-            | lExpr=expr COMPOP rExpr=expr      # Comp
-            | lExpr=expr EQOP rExpr=expr        # EQ
+            | lExpr=expr COMPOP rExpr=expr          # Comp
+            | lExpr=expr EQOP rExpr=expr            # EQ
+            | assignStatement                       # AssignExpr
             ;
 
 expr_unary	: CONST							    # ConstExpr
@@ -54,7 +57,6 @@ RETURN		: 'return' ;
 TYPE		: 'int' | 'void' ;
 NAME		: [a-zA-Z_] [a-zA-Z0-9_]* ;
 CONST 		: [0-9]+ ;
-COMMENT 	: '/*' .*? '*/' -> skip ;
-LINE_COMMENT: '//' ~[\r\n]* -> skip ;
+COMMENT 	: ('/*' .*? '*/' | '//' .*? '\n') -> skip ;
 DIRECTIVE 	: '#' .*? '\n' -> skip ;
 WS    		: [ \t\r\n] -> channel(HIDDEN);

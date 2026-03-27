@@ -38,20 +38,11 @@ antlrcpp::Any CodeGenVisitor::visitFunction(ifccParser::FunctionContext *ctx) {
 }
 
 antlrcpp::Any CodeGenVisitor::visitDeclareStatement(ifccParser::DeclareStatementContext *ctx) {
+    visitChildren(ctx);
     // Declaration only, no code to generate
 	return 0;
 }
 
-antlrcpp::Any CodeGenVisitor::visitDeclareAssignStatement(ifccParser::DeclareAssignStatementContext *ctx) {
-	// Evaluate the expression on the right side
-	visit(ctx->expr());
-
-	// Store result into the newly declared variable
-	std::string varName = ctx->NAME()->getText();
-	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {varName, "eax"});
-
-	return 0;
-}
 
 antlrcpp::Any CodeGenVisitor::visitFunctionCallStatement(ifccParser::FunctionCallStatementContext *ctx) {
 	if (ctx->argument()) {
@@ -77,11 +68,13 @@ antlrcpp::Any CodeGenVisitor::visitFunctionCallStatement(ifccParser::FunctionCal
 
 antlrcpp::Any CodeGenVisitor::visitAssignStatement(ifccParser::AssignStatementContext *ctx) {
 	// Visit the expression, evaluating the right side and putting the result in %eax
-	visit(ctx->expr());
-	
-	std::string varName = ctx->NAME()->getText();
+    if (ctx->expr()) {
+        visit(ctx->expr());
 
-	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {varName, "eax"});
+        std::string varName = ctx->NAME()->getText();
+
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {varName, "eax"});
+    }
 
 	return 0;
 }
