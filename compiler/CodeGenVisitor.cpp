@@ -30,7 +30,7 @@ antlrcpp::Any CodeGenVisitor::visitFunction(ifccParser::FunctionContext *ctx) {
 
 	// 2. Visit the function block to generate IR
 	visit(ctx->block());
-	
+
 	// 3. Restore locations
 	currentCFG = oldCFG; // Restore the previous CFG
 
@@ -129,7 +129,7 @@ antlrcpp::Any CodeGenVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx) {
 		}
 	}
 
-	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::call, Type::INT, {ctx->NAME()->getText()});	
+	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::call, Type::INT, {ctx->NAME()->getText()});
 	return 0;
 }
 
@@ -206,5 +206,37 @@ antlrcpp::Any CodeGenVisitor::visitBitWise(ifccParser::BitWiseContext *ctx) {
 
 antlrcpp::Any CodeGenVisitor::visitPar(ifccParser::ParContext *ctx) {
 	visit(ctx->expr());
+	return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitComp(ifccParser::CompContext *ctx) {
+	visit(ctx->lExpr);
+	const std::string tmpVar = currentCFG->create_new_tempvar(Type::INT);
+	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {tmpVar, "eax"});
+
+	visit(ctx->rExpr);
+	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {"edx", tmpVar});
+
+	if (ctx->COMPOP()->getText() == "<") {
+		currentCFG->current_bb->add_IRInstr(IRInstr::Operation::cmp_lt, Type::INT, {"eax", "edx"});
+	} else if (ctx->COMPOP()->getText() == ">") {
+		currentCFG->current_bb->add_IRInstr(IRInstr::Operation::cmp_gt, Type::INT, {"eax", "edx"});
+	}
+	return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitEQ(ifccParser::EQContext *ctx) {
+		visit(ctx->lExpr);
+	const std::string tmpVar = currentCFG->create_new_tempvar(Type::INT);
+	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {tmpVar, "eax"});
+
+	visit(ctx->rExpr);
+	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {"edx", tmpVar});
+
+	if (ctx->EQOP()->getText() == "==") {
+		currentCFG->current_bb->add_IRInstr(IRInstr::Operation::cmp_eq, Type::INT, {"eax", "edx"});
+	} else if (ctx->EQOP()->getText() == "!=") {
+		currentCFG->current_bb->add_IRInstr(IRInstr::Operation::cmp_ne, Type::INT, {"eax", "edx"});
+	}
 	return 0;
 }

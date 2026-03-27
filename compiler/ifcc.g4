@@ -24,6 +24,9 @@ statement	: TYPE NAME '=' expr ';'			# DeclareAssignStatement
 			| NAME '=' expr ';'				    # AssignStatement
 			| NAME '(' argument? ')' ';'		# FunctionCallStatement
 			| RETURN expr? ';'                  # ReturnStatement
+            | 'if' '(' expr ')' statement
+              ('else' statement)?               # IfStatement
+            | 'while' '(' expr ')' statement    # WhileStatement
 			;
 
 // 4. Defines what an expression is
@@ -31,6 +34,8 @@ expr		: lExpr=expr MULTOP rExpr=expr		    # MultDiv
 			| lExpr=expr op=('-'|'+') rExpr=expr    # AddSub
 			| ( op=('-'|'+'|'!') )? expr_unary      # UnaryExpr
 			| lExpr=expr BITOP rExpr=expr		    # BitWise
+            | lExpr=expr COMPOP rExpr=expr      # Comp
+            | lExpr=expr EQOP rExpr=expr        # EQ
             ;
 
 expr_unary	: CONST							    # ConstExpr
@@ -38,11 +43,6 @@ expr_unary	: CONST							    # ConstExpr
 			| NAME							    # VarExpr
 			| '(' expr ')'					    # Par
 			;
-
-expr_bool   : expr                                  # Bool
-            | expr COMPOP expr                      # Comp
-            | expr EQOP expr                        # EQ
-            ;
 
 // ~~~~~~~~~~ LEXER Rules (Tokens) ~~~~~~~~~~ //
 
