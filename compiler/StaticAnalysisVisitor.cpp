@@ -85,44 +85,34 @@ std::any StaticAnalysisVisitor::visitFunction(ifccParser::FunctionContext *ctx) 
 }
 
 std::any StaticAnalysisVisitor::visitDeclareStatement(ifccParser::DeclareStatementContext *ctx) {
-	for (auto Node : ctx->NAME()) {
-		std::string varName = Node->getText();
+	for (auto Node : ctx->assignStatement()) {
+		std::string varName = Node->NAME()->getText();
 
 		if (currSymbolTable->getVariable(varName) != nullptr) {
 			std::cerr << "Error: Variable '" << varName << "' has already been declared." << std::endl;
 			hasError = true;
 		} else {
 			currSymbolTable->addVariable(varName);
+		    visit(Node);
 		}
 	}
 	return 0;
 }
 
-std::any StaticAnalysisVisitor::visitDeclareAssignStatement(ifccParser::DeclareAssignStatementContext *ctx) {
-	std::string varName = ctx->NAME()->getText();
-
-	if (currSymbolTable->getVariable(varName) != nullptr) {
-		std::cerr << "Error: Variable '" << varName << "' has already been declared." << std::endl;
-		hasError = true;
-	} else {
-		currSymbolTable->addVariable(varName);
-	}
-
-	// Visit the expression on the right side of '='
-	visit(ctx->expr());
-	return 0;
-}
 
 std::any StaticAnalysisVisitor::visitAssignStatement(ifccParser::AssignStatementContext *ctx) {
-	std::string varName = ctx->NAME()->getText();
+    if (ctx->expr()) {
+        std::string varName = ctx->NAME()->getText();
 
-	if (currSymbolTable->getVariable(varName) == nullptr) {
-		std::cerr << "Error: Variable '" << varName << "' assigned before declaration." << std::endl;
-		hasError = true;
-	}
+        if (currSymbolTable->getVariable(varName) == nullptr) {
+            std::cerr << "Error: Variable '" << varName << "' assigned before declaration." << std::endl;
+            hasError = true;
+        }
 
-	// Visit the right side of the equals sign
-	visit(ctx->expr());
+        // Visit the right side of the equals sign
+        visit(ctx->expr());
+    }
+
 	return 0;
 }
 
