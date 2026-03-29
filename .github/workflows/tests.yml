@@ -54,7 +54,7 @@ jobs:
   # Run each tests
   test-suite:
     needs: [discover-tests, prepare-antlr]
-    runs-on: ubuntu-latest
+    runs-on: [ubuntu-latest, arm64]
 
     strategy:
       fail-fast: false # To continue running all tests even if one fails
