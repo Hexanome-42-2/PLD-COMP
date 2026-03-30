@@ -42,6 +42,7 @@ expr		: lExpr=expr MULTOP rExpr=expr		    # MultDiv
             ;
 
 expr_unary	: CONST							    # ConstExpr
+			| CHAR_CONST					    # CharConstExpr
 			| NAME '(' argument? ')'			# FuncCall
 			| NAME							    # VarExpr
 			| '(' expr ')'					    # Par
@@ -57,6 +58,7 @@ RETURN		: 'return' ;
 TYPE		: 'int' | 'void' ;
 NAME		: [a-zA-Z_] [a-zA-Z0-9_]* ;
 CONST 		: [0-9]+ ;
+CHAR_CONST	: '\'' ( '\\' . | ~['\\] ) '\'' ;
 COMMENT 	: ('/*' .*? '*/' | '//' .*? '\n') -> skip ;
 DIRECTIVE 	: '#' .*? '\n' -> skip ;
 WS    		: [ \t\r\n] -> channel(HIDDEN);

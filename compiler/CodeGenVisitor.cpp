@@ -228,6 +228,35 @@ antlrcpp::Any CodeGenVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx) 
     return 0;
 }
 
+antlrcpp::Any CodeGenVisitor::visitCharConstExpr(ifccParser::CharConstExprContext *ctx) {
+	std::string text = ctx->CHAR_CONST()->getText(); // e.g. 'a' or '\n'
+	// Strip surrounding single quotes: text[0] == '\'' and text[last] == '\''
+	int value = 0;
+	if (text.size() >= 3 && text[1] == '\\') {
+		// Escape sequence
+		switch (text[2]) {
+			case 'n':  value = '\n'; break;
+			case 't':  value = '\t'; break;
+			case 'r':  value = '\r'; break;
+			case '0':  value = '\0'; break;
+			case '\\': value = '\\'; break;
+			case '\'': value = '\''; break;
+			case '\"': value = '\"'; break;
+			case 'a':  value = '\a'; break;
+			case 'b':  value = '\b'; break;
+			case 'f':  value = '\f'; break;
+			case 'v':  value = '\v'; break;
+			default:   value = text[2]; break;
+		}
+	} else if (text.size() >= 3) {
+		value = (unsigned char)text[1];
+	}
+
+	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::ldconst, Type::INT,
+		{"eax", std::to_string(value)});
+	return 0;
+}
+
 antlrcpp::Any CodeGenVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
 	std::string varName = ctx->NAME()->getText();
 
