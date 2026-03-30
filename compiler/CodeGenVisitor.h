@@ -16,7 +16,8 @@ class  CodeGenVisitor : public ifccBaseVisitor {
 		CFG *currentCFG = nullptr; // Current CFG being accessed
 		CFGContainer *cfgContainer;
 		std::unordered_map<std::string, SymbolTable*> *functionSymbolTables;
-		std::vector<std::unordered_map<std::string, int>> declaredVars;
+        std::unordered_map<std::string, FunctionSignature> functionSignatures;
+        std::vector<std::unordered_map<std::string, int>> declaredVars;
 		int currBlockIndex = 0;
 
 		CodeGenVisitor(
@@ -37,8 +38,10 @@ class  CodeGenVisitor : public ifccBaseVisitor {
    			 return offset;
 		}
 
+        virtual antlrcpp::Any visitIncludeStatement(ifccParser::IncludeStatementContext *ctx) override;
 		virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
-		virtual antlrcpp::Any visitFunction(ifccParser::FunctionContext *ctx) override;
+		virtual antlrcpp::Any visitFunctionDeclaration(ifccParser::FunctionDeclarationContext *ctx) override;
+		virtual antlrcpp::Any visitFunctionDefinition(ifccParser::FunctionDefinitionContext *ctx) override;
 		virtual antlrcpp::Any visitDeclareStatement(ifccParser::DeclareStatementContext *ctx) override;
 		virtual antlrcpp::Any visitAssignStatement(ifccParser::AssignStatementContext *ctx) override;
 		virtual antlrcpp::Any visitFunctionCallStatement(ifccParser::FunctionCallStatementContext *ctx) override;

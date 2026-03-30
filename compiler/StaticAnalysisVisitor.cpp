@@ -1,5 +1,47 @@
 #include "StaticAnalysisVisitor.h"
 
+std::any StaticAnalysisVisitor::visitIncludeStatement(ifccParser::IncludeStatementContext *ctx) {
+	std::string filePath = ctx->file->getText();
+
+	// Append standard include paths to search for the file
+	// Check if the file exists (for now only in standard include paths or current directory)
+	// --> Later implementations should handle include paths as well
+	std::string standardIncludes[] = {"/usr/include/", "/usr/local/include/", "./", "/usr/include/x86_64-linux-gnu/"}; // Add more paths as needed
+
+	bool found = false;
+	for (const std::string& includePath : standardIncludes) {
+		std::ifstream file(includePath + filePath);
+		if (file.good()) {
+			filePath = includePath + filePath; // Update filePath to the full path
+			found = true;
+			break;
+		}
+	}
+	if (!found) {
+		std::cerr << "Error: Included file '" << filePath << "' cannot be found in standard include paths." << std::endl;
+		hasError = true;
+		return 0;
+	} else {
+		// Create a new parser for the included file and perform static analysis on it
+		ANTLRInputStream input(filePath);
+		ifccLexer lexer(&input);
+		CommonTokenStream tokens(&lexer);
+		tokens.fill();
+		ifccParser parser(&tokens);
+		tree::ParseTree* tree = parser.axiom();
+		if (parser.getNumberOfSyntaxErrors() != 0) {
+			std::cerr << "Error: Syntax error in included file '" << filePath << "'." << std::endl;
+			hasError = true;
+		} else {
+			bool oldVisitingInclude = isVisitingInclude; // Save the old state of the flag
+			isVisitingInclude = true; // Set flag to indicate we're analyzing an included file
+			visit(tree); // Recursively analyze the included file
+			isVisitingInclude = oldVisitingInclude; // Restore the old state of the flag
+		}
+	}
+	return 0;
+}
+
 std::any StaticAnalysisVisitor::visitProg(ifccParser::ProgContext *ctx) {
 	currSymbolTable = programSymbolTable;
 
@@ -24,7 +66,7 @@ std::any StaticAnalysisVisitor::visitProg(ifccParser::ProgContext *ctx) {
 				std::cerr << "Error: Function '" << name << "' already defined." << std::endl;
 				hasError = true;
 			} else {
-				functionSignatures[name] = {retTypeEnum, paramCount};
+				functionSignatures[name] = {retTypeEnum, paramCount, isVisitingInclude}; // Mark as external if we're currently visiting an include
 			}
 		}
 	}
@@ -52,7 +94,35 @@ std::any StaticAnalysisVisitor::visitProg(ifccParser::ProgContext *ctx) {
 	return 0;
 }
 
-std::any StaticAnalysisVisitor::visitFunction(ifccParser::FunctionContext *ctx) {
+std::any StaticAnalysisVisitor:visitFunctionDeclaration(ifccParser::FunctionDeclarationContext *ctx) {
+	std::string functionName = ctx->funcName->getText();
+
+	if (functionSymbolTables->find(functionName) != functionSymbolTables->end()) {
+		std::cerr << "Error: Function '" << functionName << "' has already been declared." << std::endl;
+		hasError = true;
+		return 0;
+	}
+
+	SymbolTable* functionTable = new SymbolTable();
+	(*functionSymbolTables)[functionName] = functionTable;
+
+	if (ctx->parameters()) {
+		ifccParser::ParamListContext* params = dynamic_cast<ifccParser::ParamListContext*>(ctx->parameters);
+		if (params) {
+			for (antlr4::tree::TerminalNode* varNode : params->NAME()) {
+				std::string paramName = varNode->getText();
+				if (functionTable->getVariable(paramName) == nullptr) {
+					functionTable->addVariable(paramName);
+					functionTable->MarkUsed(paramName); // params are considered "used"
+				}
+			}
+		}
+	}
+
+	return 0;
+}
+
+std::any StaticAnalysisVisitor::visitFunctionDefinition(ifccParser::FunctionDefinitionContext *ctx) {
 	std::string functionName = ctx->funcName->getText();
 
 	if (allSymbolTables->find(functionName) != allSymbolTables->end()) {

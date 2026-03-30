@@ -85,7 +85,11 @@ void IRInstr::gen_asm_x86(std::ostream &output) {
             break;
 
         case IRInstr::Operation::call:
-            output << "    call " << params[0] << "\n";
+            output << "    call " << params[0];
+            if (params.size() > 2) {
+                output << "@PLT";
+            }
+            output << "\n";
             output << "    movl " << bb->cfg->IR_reg_to_asm(kReturnReg) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
             break;
 

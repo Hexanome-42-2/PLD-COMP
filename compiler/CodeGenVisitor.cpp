@@ -1,12 +1,22 @@
 #include "CodeGenVisitor.h"
 
 
+antlrcpp::Any CodeGenVisitor::visitIncludeStatement(ifccParser::IncludeStatementContext *ctx) {
+	// Do nothing
+	return 0;
+}
+
 antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx) {
     visitChildren(ctx);
     return 0;
 }
 
-antlrcpp::Any CodeGenVisitor::visitFunction(ifccParser::FunctionContext *ctx) {
+antlrcpp::Any CodeGenVisitor::visitFunctionDeclaration(ifccParser::FunctionDeclarationContext *ctx) {
+	// Do nothing for declarations, definitions will generate code
+	return 0;
+}
+
+antlrcpp::Any CodeGenVisitor::visitFunctionDefinition(ifccParser::FunctionDefinitionContext *ctx) {
 	// 1. Create a new CFG for this function and add it to the map
 	std::string functionName = ctx->funcName->getText();
 	currBlockIndex = 0; // Reset block index for new function
@@ -97,6 +107,10 @@ antlrcpp::Any CodeGenVisitor::visitFunctionCallStatement(ifccParser::FunctionCal
 			}
 		}
 	}
+
+    std::string funcName = ctx->NAME()->getText();
+    FunctionSignature sig =  (*functionSymbolTables)[]->functionSignatures[funcName];
+    bool isExternal = sig.isExternal;
 
     std::string resVar = currentCFG->create_new_tempvar(Type::INT);
 	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::call, Type::INT, {ctx->NAME()->getText(), resVar});
@@ -292,6 +306,10 @@ antlrcpp::Any CodeGenVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx) {
 			}
 		}
 	}
+
+    std::string funcName = ctx->NAME()->getText();
+    FunctionSignature sig =  (*functionSymbolTables)[]->functionSignatures[funcName];
+    bool isExternal = sig.isExternal;
 
     std::string resVar = currentCFG->create_new_tempvar(Type::INT);
 	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::call, Type::INT, {ctx->NAME()->getText(), resVar});

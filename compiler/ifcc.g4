@@ -2,12 +2,16 @@ grammar ifcc;
 
 axiom : prog EOF ;
 
-prog 		: fonction+ ;
+prog 		: ( include | fonction )+ ;
 
-fonction  	: functype=TYPE funcName=NAME '(' parameters? ')' block		# Function
+include		: '#' INCLUDE ( '"' file=FILEPATH '"' | '<' file=FILEPATH '>' )		# IncludeStatement
 			;
 
-block		: '{' statement* '}'
+fonction  	: functype=TYPE funcName=NAME '(' parameters? ')' ';'		# FunctionDeclaration
+			| functype=TYPE funcName=NAME '(' parameters? ')' block		# FunctionDefinition
+			;
+
+block		: '{' ( include | statement )* '}'
 			;
 
 // 1. Defines function parameters (each param has explicit type: int a, int b)
@@ -51,15 +55,17 @@ expr_unary	: CONST							    # ConstExpr
 
 // ~~~~~~~~~~ LEXER Rules (Tokens) ~~~~~~~~~~ //
 
-MULTOP      : '*' | '/' | '%' ;
-BITOP       : '&' | '|' | '^' ;
-COMPOP      : '<' | '>' ;
-EQOP        : '==' | '!=' ;
-RETURN		: 'return' ;
-TYPE		: 'int' | 'void' ;
-NAME		: [a-zA-Z_] [a-zA-Z0-9_]* ;
-CONST 		: [0-9]+ ;
-CHAR_CONST	: '\'' ( '\\' . | ~['\\] ) '\'' ;
-COMMENT 	: ('/*' .*? '*/' | '//' .*? '\n') -> skip ;
-DIRECTIVE 	: '#' .*? '\n' -> skip ;
-WS    		: [ \t\r\n] -> channel(HIDDEN);
+MULTOP          : '*' | '/' | '%' ;
+BITOP           : '&' | '|' | '^' ;
+COMPOP          : '<' | '>' ;
+EQOP            : '==' | '!=' ;
+RETURN		    : 'return' ;
+TYPE		    : 'int' | 'void' ;
+NAME		    : [a-zA-Z_] [a-zA-Z0-9_]* ;
+CONST 		    : [0-9]+ ;
+CHAR_CONST	    : '\'' ( '\\' . | ~['\\] ) '\'' ;
+COMMENT 	    : ('/*' .*? '*/' | '//' .*? '\n') -> skip ;
+INCLUDE			: 'include' ;
+FILEPATH		: [a-zA-Z0-9_./]+ ;
+OTHER_DIRECTIVE	: '#' .*? '\n' -> skip ;
+WS    		    : [ \t\r\n] -> channel(HIDDEN);
