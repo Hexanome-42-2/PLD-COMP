@@ -7,7 +7,6 @@
 #include "SymbolTable.h"
 #include "IR.h"
 #include "CFG.h"
-#include <map>
 #include <string>
 #include <unordered_map>
 

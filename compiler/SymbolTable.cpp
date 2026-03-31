@@ -32,9 +32,13 @@ void SymbolTable::addVariable(const std::string &name) {
 
 const std::string SymbolTable::addTemporaryVariable() {
     tmpOffset -= 4; // Decrement offset for the next temporary variable
-    std::string tmpName = "!tmp" + std::to_string(tmpOffset); // Create a unique name for the temporary variable
+    std::string tmpName = nameTemporaryVariable(tmpOffset); // Create a unique name for the temporary variable
     symbolTable[tmpName] = {tmpOffset, Type::INT, false}; // Store the current offset and mark as unused
     return tmpName; // Return the name of the temporary variable
+}
+
+std::string SymbolTable::nameTemporaryVariable(int offset) {
+    return "!tmp" + std::to_string(offset);
 }
 
 VarInfo *SymbolTable::getVariable(const std::string &name) {
@@ -76,6 +80,10 @@ Type SymbolTable::getVariableType(const std::string &name) {
         return parent->getVariableType(name); // Variable not found, check parent
     }
     return Type::ERROR; // Variable not found
+}
+
+void SymbolTable::clearTemporaryVariables() {
+    tmpOffset = varOffset;
 }
 
 int SymbolTable::getMaxOffset() const {

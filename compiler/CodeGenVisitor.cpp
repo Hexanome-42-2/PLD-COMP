@@ -130,6 +130,8 @@ antlrcpp::Any CodeGenVisitor::visitAssignStatement(ifccParser::AssignStatementCo
         currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {std::to_string(offset), kScratchRegs[0]});
     }
 
+    currentCFG->clear_temporary_variables();
+
 	return result;
 }
 
