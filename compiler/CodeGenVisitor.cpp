@@ -264,9 +264,10 @@ antlrcpp::Any CodeGenVisitor::visitCharConstExpr(ifccParser::CharConstExprContex
 		value = (unsigned char)text[1];
 	}
 
+    const std::string tmpVar = currentCFG->create_new_tempvar(Type::INT);
 	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::ldconst, Type::INT,
-		{"eax", std::to_string(value)});
-	return 0;
+		{tmpVar, std::to_string(value)});
+	return tmpVar;
 }
 
 antlrcpp::Any CodeGenVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
