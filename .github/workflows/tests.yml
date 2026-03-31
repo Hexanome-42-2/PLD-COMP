@@ -54,14 +54,15 @@ jobs:
   # Run each tests
   test-suite:
     needs: [discover-tests, prepare-antlr]
-    runs-on: [ubuntu-latest, arm64]
-
     strategy:
       fail-fast: false # To continue running all tests even if one fails
       matrix:
+        arch: [x86_64, arm64]
         test-file: ${{ fromJson(needs.discover-tests.outputs.matrix) }}
 
-    name: Test ${{ matrix.test-file }}
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    name: Test ${{ matrix.test-file }} (\${{ matrix.arch }})
+
 
     steps:
       - name: Checkout
