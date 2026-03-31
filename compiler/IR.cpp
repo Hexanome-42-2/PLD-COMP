@@ -11,9 +11,9 @@ BasicBlock::~BasicBlock() {
 void BasicBlock::gen_asm(std::ostream &output) {
     output << label << ":" << std::endl;
     for (IRInstr* instr : instrs) {
-        #if defined(__x86_64__) || defined(_M_X64)
+        #if (defined(__x86_64__) || defined(_M_X64) || defined(DEV_ARCH_X86_64)) && not defined(DEV_ARCH_ARM64)
             instr->gen_asm_x86(output);
-        #elif defined(__aarch64__) || defined(_M_ARM64)
+        #elif (defined(__aarch64__) || defined(_M_ARM64) || defined(DEV_ARCH_ARM64)) && not defined(DEV_ARCH_X86_64)
             instr->gen_asm_arm(output);
         #else
             #error Architecture not supported. Please define gen_asm for your target architecture.

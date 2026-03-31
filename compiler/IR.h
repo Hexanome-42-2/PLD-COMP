@@ -11,12 +11,12 @@
 #include "CFG.h"
 
 
-#if defined(__x86_64__) || defined(_M_X64)
+#if (defined(__x86_64__) || defined(_M_X64) || defined(DEV_ARCH_X86_64)) && not defined(DEV_ARCH_ARM64)
     // x86-64 ABI argument registers (in order), shared by CFG and CodeGenVisitor
     inline const std::vector<std::string> kArgRegs = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};
     inline const std::string kReturnReg = "eax";
     inline const std::vector<std::string> kScratchRegs = {"eax", "edx"};
-#elif defined(__aarch64__) || defined(_M_ARM64)
+#elif (defined(__aarch64__) || defined(_M_ARM64) || defined(DEV_ARCH_ARM64)) && not defined(DEV_ARCH_X86_64)
     // ARM64 ABI argument registers (in order), shared by CFG and CodeGenVisitor
     inline const std::vector<std::string> kArgRegs = {"r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7"};
     inline const std::string kReturnReg = "r0";

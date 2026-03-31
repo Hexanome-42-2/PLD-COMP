@@ -7,6 +7,7 @@ include config.mk
 CC=g++
 CCFLAGS=-g -c -std=c++17 -I$(ANTLRINC) -Wno-attributes # -Wno-defaulted-function-deleted -Wno-unknown-warning-option
 LDFLAGS=-g
+ARCH=DEV_ARCH_X86_64  # DEV_ARCH_ARM64
 
 default: all
 all: ifcc
@@ -26,19 +27,19 @@ OBJECTS=build/ifccBaseVisitor.o \
 
 ifcc: $(OBJECTS)
 	@mkdir -p build
-	$(CC) $(LDFLAGS) build/*.o $(ANTLRLIB) -o ifcc
+	$(CC) $(LDFLAGS) build/*.o $(ANTLRLIB) -o ifcc -D $(ARCH)
 
 ##########################################
 # compile our hand-writen C++ code: main(), CodeGenVisitor, etc.
 build/%.o: %.cpp generated/ifccParser.cpp
 	@mkdir -p build
-	$(CC) $(CCFLAGS) -MMD -o $@ $< 
+	$(CC) $(CCFLAGS) -MMD -o $@ $< -D $(ARCH)
 
 ##########################################
 # compile all the antlr-generated C++
 build/%.o: generated/%.cpp
 	@mkdir -p build
-	$(CC) $(CCFLAGS) -MMD -o $@ $< 
+	$(CC) $(CCFLAGS) -MMD -o $@ $< -D $(ARCH)
 
 # automagic dependency management: `gcc -MMD` generates all the .d files for us
 -include build/*.d

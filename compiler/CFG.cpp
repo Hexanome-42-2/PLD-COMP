@@ -19,14 +19,14 @@ std::string CFG::new_BB_name() {
 }
 
 std::string CFG::IR_reg_to_asm(std::string reg) {
-    #if defined(__x86_64__) || defined(_M_X64)
+    #if (defined(__x86_64__) || defined(_M_X64) || defined(DEV_ARCH_X86_64)) && not defined(DEV_ARCH_ARM64)
         if (isRegister(reg)) {
             return "%" + reg;
         } else {
             std::string ret =  std::to_string(symbolTable->getVariableOffset(reg)) + "(%rbp)";
             return ret;
         }
-    #elif defined(__aarch64__) || defined(_M_ARM64)
+    #elif (defined(__aarch64__) || defined(_M_ARM64) || defined(DEV_ARCH_ARM64)) && not defined(DEV_ARCH_X86_64)
         if (isRegister(reg)) {
             return reg;
         } else {
@@ -55,11 +55,11 @@ void CFG::gen_asm_prologue(std::ostream& output) {
         output << name << ": \n" ;
     #endif
 
-    #if defined(__x86_64__) || defined(_M_X64)
+    #if (defined(__x86_64__) || defined(_M_X64) || defined(DEV_ARCH_X86_64)) && not defined(DEV_ARCH_ARM64)
         output << "    pushq %rbp\n";
         output << "    movq %rsp, %rbp\n";
         output << "    subq $" << kStackFrameSize << ", %rsp\n";
-    #elif defined(__aarch64__) || defined(_M_ARM64)
+    #elif (defined(__aarch64__) || defined(_M_ARM64) || defined(DEV_ARCH_ARM64)) && not defined(DEV_ARCH_X86_64)
         output << "    push {fp, lr}\n";
         output << "    add	fp, sp, #0\n";
         output << "    sub	sp, sp, #"<< kStackFrameSize << "\n";
@@ -71,11 +71,11 @@ void CFG::gen_asm_prologue(std::ostream& output) {
 void CFG::gen_asm_epilogue(std::ostream& output) {
     output << name << "_exit:\n";
 
-    #if defined(__x86_64__) || defined(_M_X64)
+    #if (defined(__x86_64__) || defined(_M_X64) || defined(DEV_ARCH_X86_64)) && not defined(DEV_ARCH_ARM64)
         output << "    movq %rbp, %rsp\n";
         output << "    popq %rbp\n";
         output << "    ret \n";
-    #elif defined(__aarch64__) || defined(_M_ARM64)
+    #elif (defined(__aarch64__) || defined(_M_ARM64) || defined(DEV_ARCH_ARM64)) && not defined(DEV_ARCH_X86_64)
         output << "    add sp, fp, #0\n";
         output << "    pop  {fp, lr}\n";
         output << "    bx lr\n";
