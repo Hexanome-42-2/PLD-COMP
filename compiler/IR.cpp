@@ -67,7 +67,7 @@ void IRInstr::gen_asm_x86(std::ostream &output) {
             output << "    movl " << bb->cfg->IR_reg_to_asm(params[0]) << ", " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
             output << "    cltd\n";
             output << "    idivl " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
-            output << "    movl " << bb->cfg->IR_reg_to_asm("edx") << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+            output << "    movl %edx, " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
             break;
 
         case IRInstr::Operation::rmem:
