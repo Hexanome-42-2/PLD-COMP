@@ -34,7 +34,7 @@ std::string CFG::IR_reg_to_asm(std::string reg) {
             return ret;
         }
     #else
-    #error Architecture not supported. Please define IR_reg_to_asm for your target architecture.
+        #error Architecture not supported. Please define IR_reg_to_asm for your target architecture.
     #endif
 }
 

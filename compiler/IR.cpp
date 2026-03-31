@@ -39,7 +39,7 @@ void IRInstr::gen_asm_x86(std::ostream &output) {
             break;
         
         case IRInstr::Operation::add:
-            output << "    movl " << bb->cfg->IR_reg_to_asm(params[1]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << "\n";  // todo: change all kReturnReg with kScratchRegs
+            output << "    movl " << bb->cfg->IR_reg_to_asm(params[1]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << "\n";
             output << "    addl " << bb->cfg->IR_reg_to_asm(params[0]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << "\n";
             output << "    movl " << bb->cfg->IR_reg_to_asm(kReturnReg) << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
             break;
