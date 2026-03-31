@@ -31,34 +31,39 @@ void IRInstr::gen_asm(std::ostream &output) {
             break;
         
         case IRInstr::Operation::add:
-            output << "    addl %edx, %eax\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(params[1]) << ", " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";  // todo: change all kReturnReg with kScratchRegs
+            output << "    addl " << bb->cfg->IR_reg_to_asm(params[0]) << ", " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(kReturnReg) << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
             break;
         
         case IRInstr::Operation::sub:
-            output << "    subl %eax, %edx\n";
-            output << "    movl %edx, %eax\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(params[0]) << ", " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
+            output << "    subl " << bb->cfg->IR_reg_to_asm(params[1]) << ", " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(kReturnReg) << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
             break;
         
         case IRInstr::Operation::mul:
-            output << "    imull %edx, %eax\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(params[1]) << ", " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
+            output << "    imull " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(kReturnReg) << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
             break;
 
         case IRInstr::Operation::div:
-            output << "    movl " << bb->cfg->IR_reg_to_asm(params[0]) << ", %eax\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(params[0]) << ", " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
             output << "    cltd\n";
             output << "    idivl " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(kReturnReg) << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
             break;
 
         case IRInstr::Operation::mod:
-            output << "    movl " << bb->cfg->IR_reg_to_asm(params[0]) << ", %eax\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(params[0]) << ", " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
             output << "    cltd\n";
             output << "    idivl " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
-            output << "    movl %edx, %eax\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm("edx") << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";  // todo: maybe store the value of edx in params[0] to be sure to keep the parameters used
             break;
 
         case IRInstr::Operation::rmem:
-            output << "    movl " << bb->cfg->IR_reg_to_asm(params[1]) << ", %edx\n";
-            output << "    movl %edx, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(params[1]) << ", " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
             break;
 		
         case IRInstr::Operation::wmem:
@@ -66,54 +71,71 @@ void IRInstr::gen_asm(std::ostream &output) {
             break;
 
         case IRInstr::Operation::negl:
-            //output << "    movl %eax, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
-            output << "    negl %eax\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(params[0]) << ", " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
+            output << "    negl " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(kReturnReg) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
             break;
 
         case IRInstr::Operation::call:
             output << "    call " << params[0] << "\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(kReturnReg) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
             break;
 
         case IRInstr::Operation::plus:
             break;
 
 		case IRInstr::Operation::notl:
-            output << "    cmpl $0, %eax\n";
+            output << "    cmpl $0, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
             output << "	   sete	%al\n";
-            output << "	   movzbl %al, %eax\n";
+            output << "	   movzbl %al, " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(kReturnReg) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
             break;
 
         case IRInstr::Operation::band:
-            output << "    andl %edx, %eax\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(params[1]) << ", " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
+            output << "    andl " << bb->cfg->IR_reg_to_asm(params[0]) << ", " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(kReturnReg) << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
             break;
 
         case IRInstr::Operation::bor:
-            output << "    orl %edx, %eax\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(params[1]) << ", " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
+            output << "    orl " << bb->cfg->IR_reg_to_asm(params[0]) << ", " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(kReturnReg) << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
             break;
 
         case IRInstr::Operation::bxor:
-            output << "    xorl %edx, %eax\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(params[1]) << ", " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
+            output << "    xorl " << bb->cfg->IR_reg_to_asm(params[0]) << ", " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(kReturnReg) << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
             break;
 
         case IRInstr::Operation::cmp_eq:
-            output << "    cmpl " << bb->cfg->IR_reg_to_asm(params[0]) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(params[1]) << ", " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
+            output << "    cmpl " << bb->cfg->IR_reg_to_asm(params[0]) << ", " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
             output << "    sete %al\n";
-            output << "    movzbl %al, %eax\n";
+            output << "    movzbl %al, " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(kReturnReg) << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
             break;
         case IRInstr::Operation::cmp_ne:
-            output << "    cmpl " << bb->cfg->IR_reg_to_asm(params[0]) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(params[1]) << ", " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
+            output << "    cmpl " << bb->cfg->IR_reg_to_asm(params[0]) << ", " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
             output << "    setne %al\n";
-            output << "    movzbl %al, %eax\n";
+            output << "    movzbl %al, " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(kReturnReg) << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
             break;
         case IRInstr::Operation::cmp_lt:
-            output << "    cmpl " << bb->cfg->IR_reg_to_asm(params[0]) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(params[0]) << ", " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
+            output << "    cmpl " << bb->cfg->IR_reg_to_asm(params[1]) << ", " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
             output << "    setl %al\n";
-            output << "    movzbl %al, %eax\n";
+            output << "    movzbl %al, " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(kReturnReg) << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
             break;
         case IRInstr::Operation::cmp_gt:
-            output << "    cmpl " << bb->cfg->IR_reg_to_asm(params[0]) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(params[0]) << ", " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
+            output << "    cmpl " << bb->cfg->IR_reg_to_asm(params[1]) << ", " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
             output << "    setg %al\n";
-            output << "    movzbl %al, %eax\n";
+            output << "    movzbl %al, " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(kReturnReg) << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
             break;
         case IRInstr::Operation::jmp:
             output << "    jmp " << params[0] << "\n";

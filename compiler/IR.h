@@ -12,20 +12,22 @@
 
 
 #if defined(__x86_64__) || defined(_M_X64)
-// x86-64 ABI argument registers (in order), shared by CFG and CodeGenVisitor
-inline const std::vector<std::string> kArgRegs = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};
-inline const std::string kReturnReg = "eax";
+    // x86-64 ABI argument registers (in order), shared by CFG and CodeGenVisitor
+    inline const std::vector<std::string> kArgRegs = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};
+    inline const std::string kReturnReg = "eax";
+    inline const std::vector<std::string> kScratchRegs = {"eax", "edx"};
 #elif defined(__aarch64__) || defined(_M_ARM64)
-// ARM64 ABI argument registers (in order), shared by CFG and CodeGenVisitor
-inline const std::vector<std::string> kArgRegs = {"w0", "w1", "w2", "w3", "w4", "w5", "w6", "w7"};
-inline const std::string kReturnReg = "w0";
+    // ARM64 ABI argument registers (in order), shared by CFG and CodeGenVisitor
+    inline const std::vector<std::string> kArgRegs = {"r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7"};
+    inline const std::string kReturnReg = "r0";
+    inline const std::vector<std::string> kScratchRegs = {"r0", "r1", "r2", "r3"};
 #else
-#error Architecture not supported. Please define kArgRegs and kReturnReg for your target architecture.
+    #error Architecture not supported. Please define kArgRegs and kReturnReg for your target architecture.
 #endif
 
 
 inline bool isRegister(const std::string& name) {
-    return name == "eax" || std::find(kArgRegs.begin(), kArgRegs.end(), name) != kArgRegs.end();
+    return name == kReturnReg || std::find(kArgRegs.begin(), kArgRegs.end(), name) != kArgRegs.end() || std::find(kScratchRegs.begin(), kScratchRegs.end(), name) != kScratchRegs.end();
 }
 
 class BasicBlock;
