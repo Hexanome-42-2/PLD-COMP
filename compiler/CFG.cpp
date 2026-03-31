@@ -21,14 +21,14 @@ std::string CFG::new_BB_name() {
 std::string CFG::IR_reg_to_asm(std::string reg) {
     #if (defined(__x86_64__) || defined(_M_X64) || defined(DEV_ARCH_X86_64)) && not defined(DEV_ARCH_ARM64)
         if (isRegister(reg)) {
-            return "%" + reg;
+            return "%" + trimRegName(reg);
         } else {
             std::string ret =  std::to_string(symbolTable->getVariableOffset(reg)) + "(%rbp)";
             return ret;
         }
     #elif (defined(__aarch64__) || defined(_M_ARM64) || defined(DEV_ARCH_ARM64)) && not defined(DEV_ARCH_X86_64)
         if (isRegister(reg)) {
-            return reg;
+            return trimRegName(reg);
         } else {
             std::string ret = "[sp, #" + std::to_string(-symbolTable->getVariableOffset(reg)) + "]";
             return ret;

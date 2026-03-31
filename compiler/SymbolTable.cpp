@@ -14,7 +14,7 @@ void SymbolTable::addVariable(const std::string &name) {
 
 const std::string SymbolTable::addTemporaryVariable() {
     tmpOffset -= 4; // Decrement offset for the next temporary variable
-    std::string tmpName = "tmp" + std::to_string(tmpOffset); // Create a unique name for the temporary variable
+    std::string tmpName = "!tmp" + std::to_string(tmpOffset); // Create a unique name for the temporary variable
     symbolTable[tmpName] = {tmpOffset, Type::INT, false}; // Store the current offset and mark as unused
     return tmpName; // Return the name of the temporary variable
 }
