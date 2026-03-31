@@ -11,7 +11,14 @@ BasicBlock::~BasicBlock() {
 void BasicBlock::gen_asm(std::ostream &output) {
     output << label << ":" << std::endl;
     for (IRInstr* instr : instrs) {
-        instr->gen_asm(output);
+        #if defined(__x86_64__) || defined(_M_X64)
+            instr->gen_asm_x86(output);
+        #elif defined(__aarch64__) || defined(_M_ARM64)
+            instr->gen_asm_arm(output);
+        #else
+            #error Architecture not supported. Please define gen_asm for your target architecture.
+        #endif
+
     }
 }
 
@@ -20,8 +27,9 @@ void BasicBlock::add_IRInstr(IRInstr::Operation op, Type t, std::vector<std::str
     instrs.push_back(aIRInstr);
 }
 	
-void IRInstr::gen_asm(std::ostream &output) {
+void IRInstr::gen_asm_x86(std::ostream &output) {
     switch(this->op) {
+        // todo : optimise if one of the params is a reg
         case IRInstr::Operation::ldconst:
             output << "    movl $" << params[1] << ", " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
             break;
@@ -146,6 +154,141 @@ void IRInstr::gen_asm(std::ostream &output) {
     }
 }
 
+void IRInstr::gen_asm_arm(std::ostream &output) {
+    switch(this->op) {
+        case IRInstr::Operation::ldconst:
+            output << "    mov " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", #" << params[1] << "\n";
+            output << "    str " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+            break;
 
+        case IRInstr::Operation::copy:
+            output << "    cpy " << bb->cfg->IR_reg_to_asm(params[0]) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            break;
 
+        case IRInstr::Operation::add:
+            output << "    ldr " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+            output << "    ldr " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            output << "    add " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << "\n";
+            output << "    str " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+            break;
 
+        case IRInstr::Operation::sub:
+            output << "    ldr " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+            output << "    ldr " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            output << "    sub " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << "\n";
+            output << "    str " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+            break;
+
+        case IRInstr::Operation::mul:
+            output << "    ldr " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+            output << "    ldr " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            output << "    mul " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << "\n";
+            output << "    str " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+            break;
+
+        case IRInstr::Operation::div:
+            output << "    ldr " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+            output << "    ldr " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            output << "    sdiv " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << "\n";
+            output << "    str " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+            break;
+
+        case IRInstr::Operation::mod:
+            output << "    ldr " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+            output << "    ldr " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            output << "    sdiv " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << "\n";
+            output << "    mls " << bb->cfg->IR_reg_to_asm(kScratchRegs[3]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << "\n";
+            output << "    str " << bb->cfg->IR_reg_to_asm(kScratchRegs[3]) << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+            break;
+
+        case IRInstr::Operation::rmem:
+            output << "    ldr " << bb->cfg->IR_reg_to_asm(params[0]) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            break;
+
+        case IRInstr::Operation::wmem:
+            output << "    str " << bb->cfg->IR_reg_to_asm(params[1]) << ", " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+            break;
+
+        case IRInstr::Operation::negl:
+            output << "    ldr " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+            output << "    rsb " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", #0\n";
+            output << "    str " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            break;
+
+        case IRInstr::Operation::call:
+            output << "    bl " << params[0] << "\n";
+            output << "    str " << bb->cfg->IR_reg_to_asm(kReturnReg) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            break;
+
+        case IRInstr::Operation::plus:
+            break;
+
+		case IRInstr::Operation::notl:
+            output << "    ldr " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+            output << "    cmp " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", #0\n";
+            output << "    moveq " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << ", #1\n";
+            output << "    movne " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << ", #0\n";
+            output << "    str " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            break;
+
+        case IRInstr::Operation::band:
+            output << "    ldr " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+            output << "    ldr " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            output << "    and " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << "\n";
+            output << "    str " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+            break;
+
+        case IRInstr::Operation::bor:
+            output << "    ldr " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+            output << "    ldr " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            output << "    orr " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << "\n";
+            output << "    str " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+            break;
+
+        case IRInstr::Operation::bxor:
+            output << "    ldr " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+            output << "    ldr " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            output << "    eor " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << "\n";
+            output << "    str " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+            break;
+
+        case IRInstr::Operation::cmp_eq:
+            output << "    ldr " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+            output << "    ldr " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            output << "    cmp " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << "\n";
+            output << "    moveq " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", #1\n";
+            output << "    movne " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", #0\n";
+            output << "    str " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+            break;
+        case IRInstr::Operation::cmp_ne:
+            output << "    ldr " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+            output << "    ldr " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            output << "    cmp " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << "\n";
+            output << "    movne " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", #1\n";
+            output << "    moveq " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", #0\n";
+            output << "    str " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+            break;
+        case IRInstr::Operation::cmp_lt:
+            output << "    ldr " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+            output << "    ldr " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            output << "    cmp " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << "\n";
+            output << "    movlt " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", #1\n";
+            output << "    movge " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", #0\n";
+            output << "    str " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+            break;
+        case IRInstr::Operation::cmp_gt:
+            output << "    ldr " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
+            output << "    ldr " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            output << "    cmp " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << "\n";
+            output << "    movgt " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", #1\n";
+            output << "    movle " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", #0\n";
+            output << "    str " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
+            break;
+        case IRInstr::Operation::jmp:
+            output << "    b " << params[0] << "\n";
+            break;
+        case IRInstr::Operation::je:
+            output << "    beq " << params[0] << "\n";
+            break;
+    }
+}

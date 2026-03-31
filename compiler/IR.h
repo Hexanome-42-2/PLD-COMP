@@ -70,7 +70,8 @@ class IRInstr {
 	IRInstr(BasicBlock* bb_, Operation op, Type t, std::vector<std::string> params) : bb(bb_), op(op), t(t), params(params) {}
 	
 	/** Actual code generation */
-	void gen_asm(std::ostream &o); /**< x86 assembly code generation for this IR instruction */
+	void gen_asm_x86(std::ostream &o); /**< x86 assembly code generation for this IR instruction */
+    void gen_asm_arm(std::ostream &o); /**< arm assembly code generation for this IR instruction */
 	
  private:
 	BasicBlock* bb; /**< The BB this instruction belongs to, which provides a pointer to the CFG this instruction belong to */

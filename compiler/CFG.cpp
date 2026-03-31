@@ -19,12 +19,23 @@ std::string CFG::new_BB_name() {
 }
 
 std::string CFG::IR_reg_to_asm(std::string reg) {
-    if (isRegister(reg)) {
-        return "%" + reg;
-    } else {
-        std::string ret =  std::to_string(symbolTable->getVariableOffset(reg)) + "(%rbp)";
-        return ret;
-    }
+    #if defined(__x86_64__) || defined(_M_X64)
+        if (isRegister(reg)) {
+            return "%" + reg;
+        } else {
+            std::string ret =  std::to_string(symbolTable->getVariableOffset(reg)) + "(%rbp)";
+            return ret;
+        }
+    #elif defined(__aarch64__) || defined(_M_ARM64)
+        if (isRegister(reg)) {
+            return reg;
+        } else {
+            std::string ret = "[sp, #" + std::to_string(-symbolTable->getVariableOffset(reg)) + "]";
+            return ret;
+        }
+    #else
+    #error Architecture not supported. Please define IR_reg_to_asm for your target architecture.
+    #endif
 }
 
 void CFG::gen_asm(std::ostream& output) {
@@ -37,22 +48,40 @@ void CFG::gen_asm(std::ostream& output) {
 
 void CFG::gen_asm_prologue(std::ostream& output) {
     #ifdef __APPLE__
-    output << ".globl _" << name << "\n" ;
-    output << "_" << name << ": \n" ;
+        output << ".globl _" << name << "\n" ;
+        output << "_" << name << ": \n" ;
     #else
-    output << ".globl " << name << "\n" ;
-    output << name << ": \n" ;
+        output << ".globl " << name << "\n" ;
+        output << name << ": \n" ;
     #endif
-    output << "    pushq %rbp\n";
-    output << "    movq %rsp, %rbp\n";
-    output << "    subq $160, %rsp\n";
+
+    #if defined(__x86_64__) || defined(_M_X64)
+        output << "    pushq %rbp\n";
+        output << "    movq %rsp, %rbp\n";
+        output << "    subq $" << kStackFrameSize << ", %rsp\n";
+    #elif defined(__aarch64__) || defined(_M_ARM64)
+        output << "    push {fp, lr}\n";
+        output << "    add	fp, sp, #0\n";
+        output << "    sub	sp, sp, #"<< kStackFrameSize << "\n";
+    #else
+        #error Architecture not supported. Please define gen_asm_prologue for your target architecture.
+    #endif
 }
 
 void CFG::gen_asm_epilogue(std::ostream& output) {
     output << name << "_exit:\n";
-    output << "    movq %rbp, %rsp\n";
-	output << "    popq %rbp\n";
-	output << "    ret \n";
+
+    #if defined(__x86_64__) || defined(_M_X64)
+        output << "    movq %rbp, %rsp\n";
+        output << "    popq %rbp\n";
+        output << "    ret \n";
+    #elif defined(__aarch64__) || defined(_M_ARM64)
+        output << "    add sp, fp, #0\n";
+        output << "    pop  {fp, lr}\n";
+        output << "    bx lr\n";
+    #else
+        #error Architecture not supported. Please define gen_asm_epilogue for your target architecture.
+    #endif
 }
 
 std::string CFG::create_new_tempvar(Type t) {
