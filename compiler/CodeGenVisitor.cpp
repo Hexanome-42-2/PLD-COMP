@@ -7,34 +7,34 @@ antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx) {
 }
 
 antlrcpp::Any CodeGenVisitor::visitFunction(ifccParser::FunctionContext *ctx) {
-	// 1. Create a new CFG for this function and add it to the map
-	std::string functionName = ctx->funcName->getText();
-	CFG* oldCFG = currentCFG; // Save the current CFG to restore it later
-	currentCFG = new CFG((*functionSymbolTables)[functionName], functionName);
+    // 1. Create a new CFG for this function and add it to the map
+    std::string functionName = ctx->funcName->getText();
+    CFG* oldCFG = currentCFG; // Save the current CFG to restore it later
+    currentCFG = new CFG((*functionSymbolTables)[functionName], functionName);
 
-	cfgContainer->add_cfg(functionName, currentCFG);
+    cfgContainer->add_cfg(functionName, currentCFG);
 
-	currentCFG->add_bb(new BasicBlock(currentCFG, currentCFG->new_BB_name())); // Start with a new basic block for the function entry
+    currentCFG->add_bb(new BasicBlock(currentCFG, currentCFG->new_BB_name())); // Start with a new basic block for the function entry
 
-	// Materialize incoming register arguments into local parameter slots.
-	if (ctx->parameters()) {
-		ifccParser::ParamListContext* params = dynamic_cast<ifccParser::ParamListContext*>(ctx->parameters());
-		if (params) {
-			std::vector<antlr4::tree::TerminalNode*> paramNames = params->NAME();
-			for (size_t i = 0; i < paramNames.size() && i < kArgRegs.size(); ++i) {
-				currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT,
-					{paramNames[i]->getText(), kArgRegs[i]});
-			}
-		}
-	}
+    // Materialize incoming register arguments into local parameter slots.
+    if (ctx->parameters()) {
+        ifccParser::ParamListContext* params = dynamic_cast<ifccParser::ParamListContext*>(ctx->parameters());
+        if (params) {
+            std::vector<antlr4::tree::TerminalNode*> paramNames = params->NAME();
+            for (size_t i = 0; i < paramNames.size() && i < kArgRegs.size(); ++i) {
+                currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT,
+                    {paramNames[i]->getText(), kArgRegs[i]});
+            }
+        }
+    }
 
-	// 2. Visit the function block to generate IR
-	visit(ctx->block());
+    // 2. Visit the function block to generate IR
+    visit(ctx->block());
 
-	// 3. Restore locations
-	currentCFG = oldCFG; // Restore the previous CFG
+    // 3. Restore locations
+    currentCFG = oldCFG; // Restore the previous CFG
 
-	return 0;
+    return 0;
 }
 
 antlrcpp::Any CodeGenVisitor::visitDeclareStatement(ifccParser::DeclareStatementContext *ctx) {
@@ -43,16 +43,13 @@ antlrcpp::Any CodeGenVisitor::visitDeclareStatement(ifccParser::DeclareStatement
 	return 0;
 }
 
-
 antlrcpp::Any CodeGenVisitor::visitFunctionCallStatement(ifccParser::FunctionCallStatementContext *ctx) {
 	if (ctx->argument()) {
 		ifccParser::ArgumentListContext* args = dynamic_cast<ifccParser::ArgumentListContext*>(ctx->argument());
 		if (args) {
 			std::vector<std::string> argTemps;
 			for (ifccParser::ExprContext* argExpr : args->expr()) {
-				visit(argExpr);
-				const std::string tmpVar = currentCFG->create_new_tempvar(Type::INT);
-				currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {tmpVar, "eax"});
+				const std::string tmpVar = std::any_cast<std::string>(visit(argExpr));
 				argTemps.push_back(tmpVar);
 			}
 
@@ -62,27 +59,31 @@ antlrcpp::Any CodeGenVisitor::visitFunctionCallStatement(ifccParser::FunctionCal
 		}
 	}
 
-	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::call, Type::INT, {ctx->NAME()->getText()});
-	return 0;
+    std::string resVar = currentCFG->create_new_tempvar(Type::INT);
+	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::call, Type::INT, {ctx->NAME()->getText(), resVar});
+	return resVar;
 }
 
 antlrcpp::Any CodeGenVisitor::visitAssignStatement(ifccParser::AssignStatementContext *ctx) {
 	// Visit the expression, evaluating the right side and putting the result in %eax
+    std::string result;
     if (ctx->expr()) {
-        visit(ctx->expr());
+        result = std::any_cast<std::string>(visit(ctx->expr()));
 
         std::string varName = ctx->NAME()->getText();
 
-        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {varName, "eax"});
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {kScratchRegs[0], result});
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {varName, kScratchRegs[0]});
     }
 
-	return 0;
+	return result;
 }
 
 antlrcpp::Any CodeGenVisitor::visitReturnStatement(ifccParser::ReturnStatementContext *ctx) {
 	// Evaluate the result of the expression (if present — void functions have no return expr)
 	if (ctx->expr()) {
-		visit(ctx->expr());
+		std::string result = std::any_cast<std::string>(visit(ctx->expr()));
+	    currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {kReturnReg, result});
 	}
 
 	// Add jump to function exit block
@@ -105,10 +106,12 @@ antlrcpp::Any CodeGenVisitor::visitIfStatement(ifccParser::IfStatementContext *c
     BasicBlock *end_if_block = new BasicBlock(currentCFG, currentCFG->new_BB_name());
 
     currentCFG->add_bb(test_block);
-    visit(ctx->expr());
+    std::string resBool = std::any_cast<std::string>(visit(ctx->expr()));
 
-    test_block->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {"edx", "1"});
-    test_block->add_IRInstr(IRInstr::Operation::cmp_eq, Type::INT, {"eax", "edx"});
+    const std::string cstVar = currentCFG->create_new_tempvar(Type::INT);
+    const std::string resVar = currentCFG->create_new_tempvar(Type::INT);
+    test_block->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {cstVar, "1"});
+    test_block->add_IRInstr(IRInstr::Operation::cmp_eq, Type::INT, {resBool, cstVar, resVar});
     test_block->add_IRInstr(IRInstr::Operation::je, Type::VOID, {then_block->label});
 
     if (else_flag) {
@@ -157,10 +160,14 @@ antlrcpp::Any CodeGenVisitor::visitWhileStatement(ifccParser::WhileStatementCont
     BasicBlock *end_while_block = new BasicBlock(currentCFG, currentCFG->new_BB_name());
 
     currentCFG->add_bb(test_block);
-    visit(ctx->expr());
+    std::string resBool = std::any_cast<std::string>(visit(ctx->expr()));
 
-    test_block->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {"edx", "1"});
-    test_block->add_IRInstr(IRInstr::Operation::cmp_eq, Type::INT, {"eax", "edx"});
+    const std::string cstVar = currentCFG->create_new_tempvar(Type::INT);
+    const std::string resVar = currentCFG->create_new_tempvar(Type::INT);
+
+    test_block->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {cstVar, "1"});
+    test_block->add_IRInstr(IRInstr::Operation::cmp_eq, Type::INT, {resBool, cstVar, resVar});
+
     test_block->add_IRInstr(IRInstr::Operation::je, Type::VOID, {then_block->label});
     test_block->add_IRInstr(IRInstr::Operation::jmp, Type::VOID, {end_while_block->label});
 
@@ -185,17 +192,22 @@ antlrcpp::Any CodeGenVisitor::visitWhileStatement(ifccParser::WhileStatementCont
 // ~~~~~~~~ Expressions ~~~~~~~~
 
 antlrcpp::Any CodeGenVisitor::visitUnaryExpr(ifccParser::UnaryExprContext *ctx) {
-	visit(ctx->expr_unary());
+	std::string expr = std::any_cast<std::string>(visit(ctx->expr_unary()));
+
 	if (ctx->op) {
+	    std::string resVar = currentCFG->create_new_tempvar(Type::INT);
         if (ctx->op->getText() == "-") {
-            currentCFG->current_bb->add_IRInstr(IRInstr::Operation::negl, Type::INT, {});
+            currentCFG->current_bb->add_IRInstr(IRInstr::Operation::negl, Type::INT, {expr, resVar});
         } else if (ctx->op->getText() == "+") {
             currentCFG->current_bb->add_IRInstr(IRInstr::Operation::plus, Type::INT, {});
         }else if (ctx->op->getText() == "!") {
-            currentCFG->current_bb->add_IRInstr(IRInstr::Operation::notl, Type::INT, {});
+            currentCFG->current_bb->add_IRInstr(IRInstr::Operation::notl, Type::INT, {expr, resVar});
         }
+
+	    return resVar;
     }
-	return 0;
+
+	return expr;
 }
 
 antlrcpp::Any CodeGenVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx) {
@@ -204,9 +216,7 @@ antlrcpp::Any CodeGenVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx) {
 		if (args) {
 			std::vector<std::string> argTemps;
 			for (ifccParser::ExprContext* argExpr : args->expr()) {
-				visit(argExpr);
-				const std::string tmpVar = currentCFG->create_new_tempvar(Type::INT);
-				currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {tmpVar, "eax"});
+				const std::string tmpVar = std::any_cast<std::string>(visit(argExpr));
 				argTemps.push_back(tmpVar);
 			}
 
@@ -216,16 +226,18 @@ antlrcpp::Any CodeGenVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx) {
 		}
 	}
 
-	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::call, Type::INT, {ctx->NAME()->getText()});
-	return 0;
+    std::string resVar = currentCFG->create_new_tempvar(Type::INT);
+	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::call, Type::INT, {ctx->NAME()->getText(), resVar});
+	return resVar;
 }
 
 antlrcpp::Any CodeGenVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx) {
 	std::string constValue = ctx->CONST()->getText();
 
-	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {"eax", constValue});
+    std::string tmpVar = currentCFG->create_new_tempvar(Type::INT);
+	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {tmpVar, constValue});
 
-    return 0;
+    return tmpVar;
 }
 
 antlrcpp::Any CodeGenVisitor::visitCharConstExpr(ifccParser::CharConstExprContext *ctx) {
@@ -260,99 +272,83 @@ antlrcpp::Any CodeGenVisitor::visitCharConstExpr(ifccParser::CharConstExprContex
 antlrcpp::Any CodeGenVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
 	std::string varName = ctx->NAME()->getText();
 
-	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {"eax", varName});
-
-	return 0;
+	return varName;
 }
 
 antlrcpp::Any CodeGenVisitor::visitAddSub(ifccParser::AddSubContext *ctx) {
-	visit(ctx->lExpr);
-	const std::string tmpVar = currentCFG->create_new_tempvar(Type::INT);
-	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {tmpVar, "eax"});
+	std::string lExpr = std::any_cast<std::string>(visit(ctx->lExpr));
+    std::string rExpr = std::any_cast<std::string>(visit(ctx->rExpr));
 
-	visit(ctx->rExpr);
-	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {"edx", tmpVar});
+    const std::string resVar = currentCFG->create_new_tempvar(Type::INT);
     if (ctx->op->getText() == "+") {
-    	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::add, Type::INT, {"eax", "edx"});
+    	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::add, Type::INT, {lExpr, rExpr, resVar});
     } else if (ctx->op->getText() == "-") {
-    	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::sub, Type::INT, {"eax", "edx"});
+    	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::sub, Type::INT, {lExpr, rExpr, resVar});
     }
-	return 0;
+
+	return resVar;
 }
 
 antlrcpp::Any CodeGenVisitor::visitMultDiv(ifccParser::MultDivContext *ctx) {
-	visit(ctx->lExpr);
-	const std::string tmpVar = currentCFG->create_new_tempvar(Type::INT);
-	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {tmpVar, "eax"});
+    std::string lExpr = std::any_cast<std::string>(visit(ctx->lExpr));
+    std::string rExpr = std::any_cast<std::string>(visit(ctx->rExpr));
 
-	visit(ctx->rExpr);
-
+    const std::string resVar = currentCFG->create_new_tempvar(Type::INT);
     if (ctx->MULTOP()->getText() == "*") {
-        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {"edx", tmpVar});
-    	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::mul, Type::INT, {"eax", "edx"});
-    } else  {
-        const std::string rVar = currentCFG->create_new_tempvar(Type::INT);
-        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {rVar, "eax"});
-        if (ctx->MULTOP()->getText() == "/") {
-            currentCFG->current_bb->add_IRInstr(IRInstr::Operation::div, Type::INT, {tmpVar, rVar});
-        } else if (ctx->MULTOP()->getText() == "%") {
-            currentCFG->current_bb->add_IRInstr(IRInstr::Operation::mod, Type::INT, {tmpVar, rVar});
-        }
+    	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::mul, Type::INT, {lExpr, rExpr, resVar});
+    } else if (ctx->MULTOP()->getText() == "/") {
+            currentCFG->current_bb->add_IRInstr(IRInstr::Operation::div, Type::INT, {lExpr, rExpr, resVar});
+    } else if (ctx->MULTOP()->getText() == "%") {
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::mod, Type::INT, {lExpr, rExpr, resVar});
     }
-	return 0;
+
+	return resVar;
 }
 
 antlrcpp::Any CodeGenVisitor::visitBitWise(ifccParser::BitWiseContext *ctx) {
-    visit(ctx->lExpr);
-    const std::string tmpVar = currentCFG->create_new_tempvar(Type::INT);
-	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {tmpVar, "eax"});
+    std::string lExpr = std::any_cast<std::string>(visit(ctx->lExpr));
+    std::string rExpr = std::any_cast<std::string>(visit(ctx->rExpr));
 
-    visit(ctx->rExpr);
-	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {"edx", tmpVar});
-
+    const std::string resVar = currentCFG->create_new_tempvar(Type::INT);
     if (ctx->BITOP()->getText() == "&") {
-        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::band, Type::INT, {"eax", "edx"});
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::band, Type::INT, {lExpr, rExpr, resVar});
     } else if (ctx->BITOP()->getText() == "|") {
-        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::bor, Type::INT, {"eax", "edx"});
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::bor, Type::INT, {lExpr, rExpr, resVar});
     } else if (ctx->BITOP()->getText() == "^") {
-        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::bxor, Type::INT, {"eax", "edx"});
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::bxor, Type::INT, {lExpr, rExpr, resVar});
     }
-    return 0;
+
+    return resVar;
 }
 
 antlrcpp::Any CodeGenVisitor::visitPar(ifccParser::ParContext *ctx) {
-	visit(ctx->expr());
-	return 0;
+	std::string expr = std::any_cast<std::string>(visit(ctx->expr()));
+
+	return expr;
 }
 
 antlrcpp::Any CodeGenVisitor::visitComp(ifccParser::CompContext *ctx) {
-	visit(ctx->lExpr);
-	const std::string tmpVar = currentCFG->create_new_tempvar(Type::INT);
-	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {tmpVar, "eax"});
+    std::string lExpr = std::any_cast<std::string>(visit(ctx->lExpr));
+    std::string rExpr = std::any_cast<std::string>(visit(ctx->rExpr));
 
-	visit(ctx->rExpr);
-	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {"edx", tmpVar});
-
+    const std::string resVar = currentCFG->create_new_tempvar(Type::INT);
 	if (ctx->COMPOP()->getText() == "<") {
-		currentCFG->current_bb->add_IRInstr(IRInstr::Operation::cmp_lt, Type::INT, {"eax", "edx"});
+		currentCFG->current_bb->add_IRInstr(IRInstr::Operation::cmp_lt, Type::INT, {lExpr, rExpr, resVar});
 	} else if (ctx->COMPOP()->getText() == ">") {
-		currentCFG->current_bb->add_IRInstr(IRInstr::Operation::cmp_gt, Type::INT, {"eax", "edx"});
+		currentCFG->current_bb->add_IRInstr(IRInstr::Operation::cmp_gt, Type::INT, {lExpr, rExpr, resVar});
 	}
-	return 0;
+	return resVar;
 }
 
 antlrcpp::Any CodeGenVisitor::visitEQ(ifccParser::EQContext *ctx) {
-		visit(ctx->lExpr);
-	const std::string tmpVar = currentCFG->create_new_tempvar(Type::INT);
-	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {tmpVar, "eax"});
+    std::string lExpr = std::any_cast<std::string>(visit(ctx->lExpr));
+    std::string rExpr = std::any_cast<std::string>(visit(ctx->rExpr));
 
-	visit(ctx->rExpr);
-	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {"edx", tmpVar});
-
+    const std::string resVar = currentCFG->create_new_tempvar(Type::INT);
 	if (ctx->EQOP()->getText() == "==") {
-		currentCFG->current_bb->add_IRInstr(IRInstr::Operation::cmp_eq, Type::INT, {"eax", "edx"});
+		currentCFG->current_bb->add_IRInstr(IRInstr::Operation::cmp_eq, Type::INT, {lExpr, rExpr, resVar});
 	} else if (ctx->EQOP()->getText() == "!=") {
-		currentCFG->current_bb->add_IRInstr(IRInstr::Operation::cmp_ne, Type::INT, {"eax", "edx"});
+		currentCFG->current_bb->add_IRInstr(IRInstr::Operation::cmp_ne, Type::INT, {lExpr, rExpr, resVar});
 	}
-	return 0;
+	return resVar;
 }

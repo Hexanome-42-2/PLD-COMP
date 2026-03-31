@@ -14,20 +14,21 @@ import os
 import shutil
 import sys
 import subprocess
+import textwrap
 
 def run_command(string, logfile=None, toscreen=False):
     """ execute `string` as a shell command. Maybe write stdout+stderr to `logfile` and/or to the toscreen.
-        return the exit status""" 
+        return the exit status"""
 
     if args.debug:
         print("ifcc-test.py: "+string)
-    
+
     process=subprocess.Popen(string,shell=True,
                              stderr=subprocess.STDOUT,stdout=subprocess.PIPE,
                              text=True,bufsize=0)
     if logfile:
         logfile=open(logfile,'w')
-    
+
     while True:
         output = process.stdout.readline()
         if len(output) == 0: # only happens when 'process' has terminated
@@ -45,18 +46,90 @@ def dumpfile(name,quiet=False):
     if not quiet:
         print(data,end='')
     return data
-    
+
+def is_arm_arch(arch: str) -> bool:
+    a = (arch or "").upper()
+    return "ARM" in a
+
+def build_ifcc_for_arch(pld_base_dir: str, arch: str) -> str:
+    compiler_dir = os.path.join(pld_base_dir, "compiler")
+    outbin = os.path.join(compiler_dir, f"ifcc-{arch}")
+
+    status = run_command(f"cd {compiler_dir} && make clean && make ifcc ARCH={arch}", toscreen=True)
+    if status:
+        if os.path.exists(os.path.join(compiler_dir, "ifcc")):
+            os.unlink(os.path.join(compiler_dir, "ifcc"))
+        exit(status)
+
+    shutil.copyfile(os.path.join(compiler_dir, "ifcc"), outbin)
+    try:
+        os.chmod(outbin, 0o755)
+    except Exception:
+        pass
+    return outbin
+
+def build_ifcc_for_default_arch(pld_base_dir: str) -> str:
+    compiler_dir = os.path.join(pld_base_dir, "compiler")
+    outbin = os.path.join(compiler_dir, "ifcc")
+
+    status = run_command(f"cd {compiler_dir} && make clean && make ifcc", toscreen=True)
+    if status:
+        if os.path.exists(outbin):
+            os.unlink(outbin)
+        exit(status)
+
+    try:
+        os.chmod(outbin, 0o755)
+    except Exception:
+        pass
+    return outbin
+
+def toolchain_run_for_arch(arch: str, ifcc_path: str):
+    """
+    Retourne des fonctions (compile_ref, link_ref, run_ref, link_ifcc, run_ifcc) selon l'arch.
+    \- x86\\_64: gcc + exécution native
+    \- ARM: arm-linux-gnueabi-gcc + qemu-arm
+    """
+    if is_arm_arch(arch):
+        cc = "arm-linux-gnueabi-gcc -mcpu=cortex-a15"
+        qemu = "qemu-arm -L /usr/arm-linux-gnueabi"
+        def compile_ref():
+            return run_command(f"{cc} -S -o asm-gcc.s input.c", "gcc-compile.txt")
+        def link_ref():
+            return run_command(f"{cc} -o exe-gcc asm-gcc.s", "gcc-link.txt")
+        def run_ref():
+            return run_command(f"{qemu} ./exe-gcc", "gcc-execute.txt")
+        def compile_ifcc():
+            return run_command(f"{ifcc_path} input.c > asm-ifcc.s", "ifcc-compile.txt")
+        def link_ifcc():
+            return run_command(f"{cc} -o exe-ifcc asm-ifcc.s", "ifcc-link.txt")
+        def run_ifcc():
+            return run_command(f"{qemu} ./exe-ifcc", "ifcc-execute.txt")
+        return compile_ref, link_ref, run_ref, compile_ifcc, link_ifcc, run_ifcc
+    else:
+        def compile_ref():
+            return run_command("gcc -S -o asm-gcc.s input.c", "gcc-compile.txt")
+        def link_ref():
+            return run_command("gcc -o exe-gcc asm-gcc.s", "gcc-link.txt")
+        def run_ref():
+            return run_command("./exe-gcc", "gcc-execute.txt")
+        def compile_ifcc():
+            return run_command(f"{ifcc_path} input.c > asm-ifcc.s", "ifcc-compile.txt")
+        def link_ifcc():
+            return run_command("gcc -o exe-ifcc asm-ifcc.s", "ifcc-link.txt")
+        def run_ifcc():
+            return run_command("./exe-ifcc", "ifcc-execute.txt")
+        return compile_ref, link_ref, run_ref, compile_ifcc, link_ifcc, run_ifcc
+
+
 ######################################################################################
 ## ARGPARSE step: make sense of our command-line arguments
 
 # This is where we decide between multiple-files
 # mode and single-file mode
-
-import textwrap
-import shutil
 width = shutil.get_terminal_size().columns-2
 twf=lambda text: textwrap.fill(text,width,initial_indent=' '*4,subsequent_indent=' '*6)
-            
+
 argparser   = argparse.ArgumentParser(
 formatter_class=argparse.RawDescriptionHelpFormatter,
 description = "Testing script for the ifcc compiler. operates in one of two modes:\n\n"
@@ -82,6 +155,7 @@ argparser.add_argument('-d','--debug',action="count",default=0,
 argparser.add_argument('-S',action = "store_true", help='single-file mode: compile from C to assembly, but do not assemble')
 argparser.add_argument('-c',action = "store_true", help='single-file mode: compile/assemble to machine code, but do not link')
 argparser.add_argument('-o','--output',metavar = 'OUTPUTNAME', help='single-file mode: write output to that file')
+argparser.add_argument("--arch",action="append",default=[],help="Arch(s) à tester. Peut être répété. Ex: --arch DEV_ARCH_X86_64 --arch DEV_ARCH_ARM64")
 
 args=argparser.parse_args()
 
@@ -101,14 +175,13 @@ if args.debug:
 if os.path.isdir(f'{pld_base_dir}/ifcc-test-output'):
     run_command(f'rm -rf {pld_base_dir}/ifcc-test-output')
 
-# Ensure that the `ifcc` executable itself is up-to-date
-makestatus=run_command(f'cd {pld_base_dir}/compiler; make --question ifcc')
-if makestatus: # updates are needed
-    makestatus=run_command(f'cd {pld_base_dir}/compiler; make ifcc',toscreen=True) # this time we run `make` for real
-    if makestatus: # if `make` failed, we fail too
-        if os.path.exists("ifcc"): # and we remove any out-of-date compiler (to reduce chance of confusion)
-            os.unlink("ifcc")
-        exit(makestatus)
+# \-\-\- Build ifcc for requested archs (or default) \-\-\-
+ifcc_bins = []
+if args.arch:
+    for arch in args.arch:
+        ifcc_bins.append((arch, build_ifcc_for_arch(pld_base_dir, arch)))
+else:
+    ifcc_bins.append(("default", build_ifcc_for_default_arch(pld_base_dir)))
 
 ##########################################
 ## single-file mode aka "let's act just like GCC (almost)"
@@ -121,7 +194,7 @@ if args.S or args.c or args.output:
         print("error: this mode only supports a single input file")
         exit(1)
     inputfilename=args.input[0]
-        
+
     if inputfilename[-2:] != ".c":
         print("error: incorrect filename suffix (should be '.c'): "+inputfilename)
         exit(1)
@@ -135,14 +208,16 @@ if args.S or args.c or args.output:
     if (args.S or args.c) and not args.output:
         print("error: option '-o filename' is required in this mode")
         exit(1)
-        
+
+    ifcc_default = ifcc_bins[0][1]
+
     if args.S: # produce assembly
         if args.output[-2:] != ".s":
             print("error: output file name must end with '.s'")
             exit(1)
-        ifccstatus=run_command(f'{pld_base_dir}/compiler/ifcc {inputfilename} > {args.output}')
+        ifccstatus=run_command(f'{ifcc_default} {inputfilename} > {args.output}')
         if ifccstatus: # let's show error messages on screen
-            exit(run_command(f'{pld_base_dir}/compiler/ifcc {inputfilename}',toscreen=True))
+            exit(run_command(f'{ifcc_default} {inputfilename}',toscreen=True))
         else:
             exit(0)
 
@@ -151,19 +226,19 @@ if args.S or args.c or args.output:
             print("error: output file name must end with '.o'")
             exit(1)
         asmname=args.output[:-2]+".s"
-        ifccstatus=run_command(f'{pld_base_dir}/compiler/ifcc {inputfilename} > {asmname}')
+        ifccstatus=run_command(f'{ifcc_default} {inputfilename} > {asmname}')
         if ifccstatus: # let's show error messages on screen
-            exit(run_command(f'{pld_base_dir}/compiler/ifcc {inputfilename}',toscreen=True))
+            exit(run_command(f'{ifcc_default} {inputfilename}',toscreen=True))
         exit(run_command(f'gcc -c -o {args.output} {asmname}',toscreen=True))
-        
+
     else: # produce an executable
         if args.output[-2:] in [".o",".c",".s"]:
             print("error: incorrect name for an executable: "+args.output)
             exit(1)
         asmname=args.output+".s"
-        ifccstatus=run_command(f'{pld_base_dir}/compiler/ifcc {inputfilename} > {asmname}')
+        ifccstatus=run_command(f'{ifcc_default} {inputfilename} > {asmname}')
         if ifccstatus:
-            exit(run_command(f'{pld_base_dir}/compiler/ifcc {inputfilename}', toscreen=True))
+            exit(run_command(f'{ifcc_default} {inputfilename}', toscreen=True))
         exit(run_command(f'gcc -o {args.output} {asmname}'))
 
     # we should never end up here
@@ -237,7 +312,7 @@ for inputfilename in inputfilenames:
     subdirname=subdirname.replace('/','-')  # flatten path to single subdir
     if args.debug>=2:
         print("debug: subdir="+subdirname)
-        
+
     os.mkdir(pld_base_dir+'/ifcc-test-output/'+subdirname)
     shutil.copyfile(inputfilename,pld_base_dir+'/ifcc-test-output/'+subdirname+'/input.c')
     jobs.append(subdirname)
@@ -262,75 +337,81 @@ if args.debug:
 ##            if both toolchains agree, this test-case is passed.
 ##            otherwise, this is a fail.
 
-all_ok=True
+overall_ok = True
+for arch_name, ifcc_path in ifcc_bins:
 
-for jobname in jobs:
-    os.chdir(f'{pld_base_dir}/ifcc-test-output')
+    all_ok=True
+    print("=== ARCH: " + arch_name + " ===")
 
-    print('TEST-CASE: '+jobname)
-    os.chdir(jobname)
-    
-    ## Reference compiler = GCC
-    gccstatus=run_command("gcc -S -o asm-gcc.s input.c", "gcc-compile.txt")
-    if gccstatus == 0:
-        # test-case is a valid program. we should run it
-        gccstatus=run_command("gcc -o exe-gcc asm-gcc.s", "gcc-link.txt")
-    if gccstatus == 0: # then both compile and link stage went well
-        exegccstatus=run_command("./exe-gcc", "gcc-execute.txt")
-        if args.verbose >=2:
-            dumpfile("gcc-execute.txt")
-            
-    ## IFCC compiler
-    ifccstatus=run_command(f'{pld_base_dir}/compiler/ifcc input.c > asm-ifcc.s', 'ifcc-compile.txt')
-    
-    if gccstatus != 0 and ifccstatus != 0:
-        ## ifcc correctly rejects invalid program -> test-case ok
-        print("TEST OK")
-        continue
-    elif gccstatus != 0 and ifccstatus == 0:
-        ## ifcc wrongly accepts invalid program -> error
-        print("TEST FAIL (your compiler accepts an invalid program)")
-        all_ok=False
-        continue
-    elif gccstatus == 0 and ifccstatus != 0:
-        ## ifcc wrongly rejects valid program -> error
-        print("TEST FAIL (your compiler rejects a valid program)")
-        all_ok=False
-        if args.verbose:
-            dumpfile("asm-ifcc.s")       # stdout of ifcc
-            dumpfile("ifcc-compile.txt") # stderr of ifcc
-        continue
-    else:
-        ## ifcc accepts to compile valid program -> let's link it
-        ldstatus=run_command("gcc -o exe-ifcc asm-ifcc.s", "ifcc-link.txt")
-        if ldstatus:
-            print("TEST FAIL (your compiler produces incorrect assembly)")
+    compile_ref, link_ref, run_ref, compile_ifcc, link_ifcc, run_ifcc = toolchain_run_for_arch(arch_name, ifcc_path)
+
+    for jobname in jobs:
+        os.chdir(f'{pld_base_dir}/ifcc-test-output')
+
+        print('TEST-CASE: '+jobname)
+        os.chdir(jobname)
+
+        ## Reference compiler = GCC
+        gccstatus=compile_ref()
+        if gccstatus == 0:
+            # test-case is a valid program. we should run it
+            gccstatus=link_ref()
+        if gccstatus == 0: # then both compile and link stage went well
+            exegccstatus=run_ref()
+            if args.verbose >=2:
+                dumpfile("gcc-execute.txt")
+
+        ## IFCC compiler
+        ifccstatus=compile_ifcc()
+
+        if gccstatus != 0 and ifccstatus != 0:
+            ## ifcc correctly rejects invalid program -> test-case ok
+            print("TEST OK")
+            continue
+        elif gccstatus != 0 and ifccstatus == 0:
+            ## ifcc wrongly accepts invalid program -> error
+            print("TEST FAIL (your compiler accepts an invalid program)")
+            all_ok=False
+            continue
+        elif gccstatus == 0 and ifccstatus != 0:
+            ## ifcc wrongly rejects valid program -> error
+            print("TEST FAIL (your compiler rejects a valid program)")
             all_ok=False
             if args.verbose:
-                dumpfile("asm-ifcc.s")
-                dumpfile("ifcc-link.txt")
+                dumpfile("asm-ifcc.s")       # stdout of ifcc
+                dumpfile("ifcc-compile.txt") # stderr of ifcc
+            continue
+        else:
+            ## ifcc accepts to compile valid program -> let's link it
+            ldstatus=link_ifcc()
+            if ldstatus:
+                print("TEST FAIL (your compiler produces incorrect assembly)")
+                all_ok=False
+                if args.verbose:
+                    dumpfile("asm-ifcc.s")
+                    dumpfile("ifcc-link.txt")
+                continue
+
+        ## both compilers  did produce an  executable, so now we  run both
+        ## these executables and compare the results.
+
+        run_ifcc()
+        if open("gcc-execute.txt").read() != open("ifcc-execute.txt").read() :
+            print("TEST FAIL (different results at execution)")
+            all_ok=False
+
+            if args.verbose:
+                print("GCC:")
+                dumpfile("gcc-execute.txt")
+                print("you:")
+                dumpfile("ifcc-execute.txt")
             continue
 
-    ## both compilers  did produce an  executable, so now we  run both
-    ## these executables and compare the results.
-        
-    run_command("./exe-ifcc", "ifcc-execute.txt")
-    if open("gcc-execute.txt").read() != open("ifcc-execute.txt").read() :
-        print("TEST FAIL (different results at execution)")
-        all_ok=False
+        ## last but not least
+        print("TEST OK")
 
-        if args.verbose:
-            print("GCC:")
-            dumpfile("gcc-execute.txt")
-            print("you:")
-            dumpfile("ifcc-execute.txt")
-        continue
+    if not all_ok:
+        overall_ok = False
 
-    ## last but not least
-    print("TEST OK")
-
-if not (all_ok or args.verbose):
+if not (overall_ok or args.verbose):
     print("Some test-cases failed. Run ifcc-test.py with option '--verbose' for more detailed feedback.")
-
-if not all_ok:
-    exit(1)
