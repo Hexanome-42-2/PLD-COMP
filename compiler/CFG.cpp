@@ -22,6 +22,8 @@ std::string CFG::IR_reg_to_asm(std::string reg) {
     #if (defined(__x86_64__) || defined(_M_X64) || defined(DEV_ARCH_X86_64)) && not defined(DEV_ARCH_ARM64)
         if (isRegister(reg)) {
             return "%" + trimRegName(reg);
+        } else if (!reg.empty() && (reg[0] == '-' || isdigit(reg[0]))) {
+            return reg + "(%rbp)";  // déjà un offset numérique
         } else {
             std::string ret =  std::to_string(symbolTable->getVariableOffset(reg)) + "(%rbp)";
             return ret;
@@ -29,6 +31,9 @@ std::string CFG::IR_reg_to_asm(std::string reg) {
     #elif (defined(__aarch64__) || defined(_M_ARM64) || defined(DEV_ARCH_ARM64)) && not defined(DEV_ARCH_X86_64)
         if (isRegister(reg)) {
             return trimRegName(reg);
+        } else if (!reg.empty() && (reg[0] == '-' || isdigit(reg[0]))) {
+            std::string ret = "[sp, #" + reg.erase(0, 1) + "]";  // remove the -
+            return ret;  // déjà un offset numérique
         } else {
             std::string ret = "[sp, #" + std::to_string(-symbolTable->getVariableOffset(reg)) + "]";
             return ret;
@@ -85,8 +90,8 @@ void CFG::gen_asm_epilogue(std::ostream& output) {
 }
 
 std::string CFG::create_new_tempvar(Type t) {
-    std::string tmpVar = symbolTable->addTemporaryVariable();
-    symbolTable->updateMaxOffset();
+    std::string tmpVar = rootSymbolTable->addTemporaryVariable();
+    rootSymbolTable->updateMaxOffset();
     return tmpVar;
 }
 

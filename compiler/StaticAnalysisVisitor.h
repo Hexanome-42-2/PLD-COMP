@@ -22,6 +22,7 @@ class StaticAnalysisVisitor : public ifccBaseVisitor {
 
 		int currIndex = 0;
 		bool hasError = false;
+		std::string currentFunctionName;
 
 		// Our function signature map for call verification
 		std::unordered_map<std::string, FunctionSignature> functionSignatures;

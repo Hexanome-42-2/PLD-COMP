@@ -65,6 +65,8 @@ std::any StaticAnalysisVisitor::visitFunction(ifccParser::FunctionContext *ctx) 
 	(*allSymbolTables)[functionName] = functionTable;
 	SymbolTable* oldSymbolTable = currSymbolTable;
 	currSymbolTable = functionTable;
+	currIndex = 0; // Reset block index for new function
+	currentFunctionName = functionName;
 
 	if (ctx->parameters()) {
 		ifccParser::ParamListContext* params = dynamic_cast<ifccParser::ParamListContext*>(ctx->parameters());
@@ -88,8 +90,9 @@ std::any StaticAnalysisVisitor::visitBlock(ifccParser::BlockContext *ctx) {
     SymbolTable* oldSymbolTable = currSymbolTable;
     currSymbolTable = blockTable;
 
-    std::string blockName = oldSymbolTable->getName() + "_" + std::to_string(currIndex++);
-    (*allSymbolTables)[blockName] = blockTable;
+    std::string blockName = currentFunctionName + "_" + std::to_string(currIndex++);
+	std::cerr << "DEBUG Static: creating block '" << blockName << "'" << std::endl;
+	(*allSymbolTables)[blockName] = blockTable;
     //debug 
     //blockTable->printSymbolTable();
 
@@ -103,7 +106,7 @@ std::any StaticAnalysisVisitor::visitDeclareStatement(ifccParser::DeclareStateme
 	for (auto Node : ctx->assignStatement()) {
 		std::string varName = Node->NAME()->getText();
 
-		if (currSymbolTable->getVariable(varName) != nullptr) {
+		if (currSymbolTable->getLocalVariable(varName) != nullptr) {
 			std::cerr << "Error: Variable '" << varName << "' has already been declared." << std::endl;
 			hasError = true;
 		} else {

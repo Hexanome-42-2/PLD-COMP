@@ -37,6 +37,14 @@ VarInfo *SymbolTable::getVariable(const std::string &name) {
     return nullptr; // Variable not found
 }
 
+VarInfo* SymbolTable::getLocalVariable(const std::string& name) {
+    auto it = symbolTable.find(name);
+    if (it != symbolTable.end()) {
+        return &(it->second);
+    }
+    return nullptr; 
+}
+
 int SymbolTable::getVariableOffset(const std::string &name) {
     auto it = symbolTable.find(name);
     if (it != symbolTable.end()) {
@@ -110,3 +118,4 @@ void SymbolTable::printSymbolTable() const {
         std::cout << "Variable: " << pair.first << ", Offset: " << pair.second.index << ", Used: " << pair.second.used << "\n";
     }
 }
+

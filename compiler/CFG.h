@@ -15,7 +15,7 @@ class BasicBlock;
 class CFG {
  public:
 	//CFG(DefFonction* ast);
-    CFG(SymbolTable * aSymbolTable, std::string aName) : symbolTable(aSymbolTable), name(aName), nextBBnumber(0), bbs(std::vector <BasicBlock*>()), current_bb(nullptr) {}
+    CFG(SymbolTable * aSymbolTable, std::string aName) : symbolTable(aSymbolTable), rootSymbolTable(aSymbolTable), name(aName), nextBBnumber(0), bbs(std::vector <BasicBlock*>()), current_bb(nullptr) {}
 
 	~CFG();
 
@@ -41,8 +41,14 @@ class CFG {
 	std::string new_BB_name(); //
 	BasicBlock* current_bb;
 
+	void setSymbolTable(SymbolTable* st) { symbolTable = st; }
+	SymbolTable* getSymbolTable() { return symbolTable; }
+	SymbolTable* getRootSymbolTable() { return rootSymbolTable; }
+	std::string getName() { return name; }
+
  protected:
-	SymbolTable * symbolTable; /**< part of the symbol table  */
+	SymbolTable* rootSymbolTable;  /**< the symbol table of the function this CFG represents. It is the root of a tree of symbol tables, one per block. */
+ 	SymbolTable * symbolTable; /**< part of the symbol table  */
 	int nextBBnumber; /**< just for naming */
 
 	std::vector <BasicBlock*> bbs; /**< all the basic blocks of this CFG*/

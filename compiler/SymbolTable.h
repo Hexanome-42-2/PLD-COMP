@@ -24,12 +24,21 @@ class SymbolTable {
         int tmpOffset = 0; // Start at 0 and increment by 4 for each new temporary variable
         int maxOffset = 0;
     public:
-        SymbolTable(SymbolTable* parent = nullptr, std::string name = "global") : parent(parent), stName(name) {};
+        SymbolTable(SymbolTable* parent = nullptr, std::string name = "global") 
+            : parent(parent), stName(name) {
+            if (parent != nullptr) {
+                std::cerr << "DEBUG ctor: parent->varOffset = " << parent->varOffset << std::endl;
+                varOffset = parent->varOffset;
+                tmpOffset = varOffset;
+                maxOffset = varOffset;
+            }
+        };
         ~SymbolTable();
         std::string getName() const { return stName; }
         void addVariable(const std::string& name);
         const std::string addTemporaryVariable();
         VarInfo* getVariable(const std::string& name);
+        VarInfo* getLocalVariable(const std::string& name);
         int getVariableOffset(const std::string& name);
         Type getVariableType(const std::string& name);
         int getMaxOffset() const;
@@ -40,3 +49,4 @@ class SymbolTable {
         std::vector<std::string> getUnusedVariables();
         void printSymbolTable() const; // Optional: For debugging purposes
 };
+
