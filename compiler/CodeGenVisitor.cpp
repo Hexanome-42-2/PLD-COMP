@@ -109,11 +109,11 @@ antlrcpp::Any CodeGenVisitor::visitFunctionCallStatement(ifccParser::FunctionCal
 	}
 
     std::string funcName = ctx->NAME()->getText();
-    FunctionSignature sig =  (*functionSymbolTables)[]->functionSignatures[funcName];
-    bool isExternal = sig.isExternal;
+    bool isExternal = (*functionSignatures)[funcName].isExternal;
+    std::string external = isExternal ? "PLT" : "";
 
     std::string resVar = currentCFG->create_new_tempvar(Type::INT);
-	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::call, Type::INT, {ctx->NAME()->getText(), resVar});
+	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::call, Type::INT, {ctx->NAME()->getText(), resVar, external});
 	return resVar;
 }
 
@@ -308,11 +308,11 @@ antlrcpp::Any CodeGenVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx) {
 	}
 
     std::string funcName = ctx->NAME()->getText();
-    FunctionSignature sig =  (*functionSymbolTables)[]->functionSignatures[funcName];
-    bool isExternal = sig.isExternal;
+    bool isExternal = (*functionSignatures)[funcName].isExternal;
+    std::string external = isExternal ? "PLT" : "";
 
     std::string resVar = currentCFG->create_new_tempvar(Type::INT);
-	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::call, Type::INT, {ctx->NAME()->getText(), resVar});
+	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::call, Type::INT, {ctx->NAME()->getText(), resVar, external});
 	return resVar;
 }
 

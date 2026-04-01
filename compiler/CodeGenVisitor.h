@@ -16,15 +16,17 @@ class  CodeGenVisitor : public ifccBaseVisitor {
 		CFG *currentCFG = nullptr; // Current CFG being accessed
 		CFGContainer *cfgContainer;
 		std::unordered_map<std::string, SymbolTable*> *functionSymbolTables;
-        std::unordered_map<std::string, FunctionSignature> functionSignatures;
+		std::unordered_map<std::string, FunctionSignature> *functionSignatures;
         std::vector<std::unordered_map<std::string, int>> declaredVars;
 		int currBlockIndex = 0;
 
 		CodeGenVisitor(
 			CFGContainer *cfgContainer,
-			std::unordered_map<std::string, SymbolTable*> *functionSymbolTables
+			std::unordered_map<std::string, SymbolTable*> *functionSymbolTables,
+			std::unordered_map<std::string, FunctionSignature> *functionSignatures
 		) : cfgContainer(cfgContainer),
-			functionSymbolTables(functionSymbolTables) {};
+			functionSymbolTables(functionSymbolTables),
+			functionSignatures(functionSignatures) {};
 
 
 		int resolveVarOffset(const std::string& name) {

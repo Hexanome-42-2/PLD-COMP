@@ -4,7 +4,7 @@ axiom : prog EOF ;
 
 prog 		: ( include | fonction )+ ;
 
-include		: '#' INCLUDE ( '"' file=FILEPATH '"' | '<' file=FILEPATH '>' )		# IncludeStatement
+include		: '#' INCLUDE ( file=HEADER_LOCAL  | file=HEADER_LIB )		# IncludeStatement
 			;
 
 fonction  	: functype=TYPE funcName=NAME '(' parameters? ')' ';'		# FunctionDeclaration
@@ -65,7 +65,9 @@ NAME		    : [a-zA-Z_] [a-zA-Z0-9_]* ;
 CONST 		    : [0-9]+ ;
 CHAR_CONST	    : '\'' ( '\\' . | ~['\\] ) '\'' ;
 COMMENT 	    : ('/*' .*? '*/' | '//' .*? '\n') -> skip ;
-INCLUDE			: 'include' ;
-FILEPATH		: [a-zA-Z0-9_./]+ ;
-OTHER_DIRECTIVE	: '#' .*? '\n' -> skip ;
-WS    		    : [ \t\r\n] -> channel(HIDDEN);
+INCLUDE			 	: 'include' ;
+HEADER_LIB			: '<' ~[>\r\n]+ '>' ;
+HEADER_LOCAL		: '"' ~["\r\n]+ '"' ;
+OTHER_DIRECTIVE		: '#' ~[\r\n]* '\n' -> skip ;
+WS    				: [ \t\r\n] -> channel(HIDDEN);
+ANY					: .  -> skip ;

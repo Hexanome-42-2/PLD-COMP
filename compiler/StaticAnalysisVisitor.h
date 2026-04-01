@@ -12,6 +12,7 @@ struct FunctionSignature {
 	Type returnType;
 	int paramCount;
 	bool isExternal; // To add dynamic library support
+	bool isDefined; // To track if the function has a body (for future use, e.g., detecting declarations without definitions)
 };
 
 class StaticAnalysisVisitor : public ifccBaseVisitor {
@@ -27,10 +28,10 @@ class StaticAnalysisVisitor : public ifccBaseVisitor {
         bool isVisitingInclude = false; // Flag to track if we're currently visiting an include statement
 
 		// Our function signature map for call verification
-		std::unordered_map<std::string, FunctionSignature> functionSignatures;
+		std::unordered_map<std::string, FunctionSignature> *functionSignatures;
 
-		StaticAnalysisVisitor(SymbolTable *table, std::unordered_map<std::string, SymbolTable*> *funcTables)
-			: programSymbolTable(table), allSymbolTables(funcTables) {};
+		StaticAnalysisVisitor(SymbolTable *table, std::unordered_map<std::string, SymbolTable*> *funcTables, std::unordered_map<std::string, FunctionSignature> *funcSigs)
+			: programSymbolTable(table), allSymbolTables(funcTables), functionSignatures(funcSigs) {};
 		~StaticAnalysisVisitor() = default;
 
 		virtual std::any visitIncludeStatement(ifccParser::IncludeStatementContext *ctx) override;
