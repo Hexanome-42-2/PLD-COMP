@@ -16,6 +16,7 @@ class  CodeGenVisitor : public ifccBaseVisitor {
 		CFG *currentCFG = nullptr; // Current CFG being accessed
 		CFGContainer *cfgContainer;
 		std::unordered_map<std::string, SymbolTable*> *functionSymbolTables;
+		std::vector<std::unordered_map<std::string, int>> declaredVars;
 		int currBlockIndex = 0;
 
 		CodeGenVisitor(
@@ -24,6 +25,23 @@ class  CodeGenVisitor : public ifccBaseVisitor {
 		) : cfgContainer(cfgContainer),
 			functionSymbolTables(functionSymbolTables) {};
 
+
+		int resolveVarOffset(const std::string& name) {
+    		std::cerr << "DEBUG resolveVarOffset('" << name << "'), declaredVars.size()=" << declaredVars.size() << std::endl;
+
+			for (int i = (int)declaredVars.size() - 1; i >= 0; i--) {
+				auto it = declaredVars[i].find(name);
+				if (it != declaredVars[i].end()){
+					std::cerr << "  -> found at scope " << i << " offset=" << it->second << std::endl;
+
+					return it->second;}
+			}
+
+			int offset = currentCFG->getRootSymbolTable()->getVariableOffset(name);
+   			 std::cerr << "  -> fallback rootSymbolTable offset=" << offset << std::endl;
+   			 return offset;
+
+		}
 		virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
 		virtual antlrcpp::Any visitFunction(ifccParser::FunctionContext *ctx) override;
 		virtual antlrcpp::Any visitDeclareStatement(ifccParser::DeclareStatementContext *ctx) override;

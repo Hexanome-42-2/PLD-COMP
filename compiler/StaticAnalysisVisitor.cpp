@@ -98,6 +98,11 @@ std::any StaticAnalysisVisitor::visitBlock(ifccParser::BlockContext *ctx) {
 
     visitChildren(ctx);
 
+	// If the block's varOffset is less than the old symbol table's varOffset, update the old symbol table's varOffset
+	if (blockTable->getVarOffset() < oldSymbolTable->getVarOffset()) {
+    oldSymbolTable->setVarOffset(blockTable->getVarOffset());
+	}
+
     currSymbolTable = oldSymbolTable;
     return 0;
 }

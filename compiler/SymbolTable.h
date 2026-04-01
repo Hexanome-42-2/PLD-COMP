@@ -44,6 +44,8 @@ class SymbolTable {
         int getMaxOffset() const;
         bool getUsed(const std::string& name);
         void MarkUsed(const std::string& name);
+        int getVarOffset() const { return varOffset; }
+        void setVarOffset(int offset) { varOffset = offset; }
         void InitializeTmpOffset();
         void updateMaxOffset();
         std::vector<std::string> getUnusedVariables();
