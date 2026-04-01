@@ -46,27 +46,43 @@ std::any StaticAnalysisVisitor::visitProg(ifccParser::ProgContext *ctx) {
 
 	// === Pass 1: Register all function signatures before analyzing bodies ===
 	for (ifccParser::FonctionContext* funcCtx : ctx->fonction()) {
-		ifccParser::FunctionDeclarationContext* f = dynamic_cast<ifccParser::FunctionDeclarationContext*>(funcCtx);
-		if (f) {
-			std::string name = f->funcName->getText();
-			std::string retType = f->functype->getText();
-            Type retTypeEnum = stringToType(retType);
-			// In C, f() means unspecified parameter list (not strictly zero parameters).
-			// We encode unknown arity as -1 and skip strict arg-count checks for those functions.
-			int paramCount = -1;
-			if (f->parameters()) {
-				ifccParser::ParamListContext* params = dynamic_cast<ifccParser::ParamListContext*>(f->parameters());
-				if (params) {
-					paramCount = params->NAME().size();
-				}
-			}
+		std::string name;
+		std::string retType;
+		int paramCount = -1;
+		bool isDef = false;
 
-			if (functionSignatures->count(name)) {
-				std::cerr << "Error: Function '" << name << "' already declared." << std::endl;
-				hasError = true;
-			} else {
-				(*functionSignatures)[name] = {retTypeEnum, paramCount, isVisitingInclude, false};
+		ifccParser::FunctionDeclarationContext* decl = dynamic_cast<ifccParser::FunctionDeclarationContext*>(funcCtx);
+		ifccParser::FunctionDefinitionContext* def = dynamic_cast<ifccParser::FunctionDefinitionContext*>(funcCtx);
+
+		if (decl) {
+			name = decl->funcName->getText();
+			retType = decl->functype->getText();
+		    Type retTypeEnum = stringToType(retType);
+
+			if (decl->parameters()) {
+				ifccParser::ParamListContext* params = dynamic_cast<ifccParser::ParamListContext*>(decl->parameters());
+				if (params) paramCount = params->NAME().size();
 			}
+		} else if (def) {
+			name = def->funcName->getText();
+			retType = def->functype->getText();
+			isDef = true;
+			if (def->parameters()) {
+				ifccParser::ParamListContext* params = dynamic_cast<ifccParser::ParamListContext*>(def->parameters());
+				if (params) paramCount = params->NAME().size();
+			}
+		} else {
+			continue;
+		}
+
+	        if (functionSignatures->count(name)) {
+	            // Already declared — just mark as defined if this is a definition
+	            if (isDef) {
+	                (*functionSignatures)[name].isDefined = true;
+	            }
+	        } else {
+	            (*functionSignatures)[name] = {retTypeEnum, paramCount, isVisitingInclude, isDef};
+	        }
 		}
 	}
 
@@ -96,14 +112,14 @@ std::any StaticAnalysisVisitor::visitProg(ifccParser::ProgContext *ctx) {
 std::any StaticAnalysisVisitor::visitFunctionDeclaration(ifccParser::FunctionDeclarationContext *ctx) {
 	std::string functionName = ctx->funcName->getText();
 
-	if (functionSymbolTables->find(functionName) != functionSymbolTables->end()) {
+	if (allSymbolTables->find(functionName) != allSymbolTables->end()) {
 		std::cerr << "Error: Function '" << functionName << "' has already been declared." << std::endl;
 		hasError = true;
 		return 0;
 	}
 
 	SymbolTable* functionTable = new SymbolTable();
-	(*functionSymbolTables)[functionName] = functionTable;
+	(*allSymbolTables)[functionName] = functionTable;
 
 	if (ctx->parameters()) {
 		ifccParser::ParamListContext* params = dynamic_cast<ifccParser::ParamListContext*>(ctx->parameters());
