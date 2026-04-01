@@ -10,6 +10,13 @@
 #include <string>
 #include <unordered_map>
 
+
+struct ExprResult {
+    bool isConst;
+    int value;
+    std::string expr;
+};
+
 class  CodeGenVisitor : public ifccBaseVisitor {
 	public:
 		CFG *currentCFG = nullptr; // Current CFG being accessed

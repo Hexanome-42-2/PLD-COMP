@@ -93,10 +93,15 @@ antlrcpp::Any CodeGenVisitor::visitFunctionCallStatement(ifccParser::FunctionCal
 		if (args) {
 			std::vector<std::string> argOffsets;
 			for (ifccParser::ExprContext* argExpr : args->expr()) {
-				const std::string tmpVar = std::any_cast<std::string>(visit(argExpr));
-			    int offset = currentCFG->getRootSymbolTable()->getVariableOffset(tmpVar);
+				ExprResult tmpVar = std::any_cast<ExprResult>(visit(argExpr));
+			    int offset = currentCFG->getRootSymbolTable()->getVariableOffset(tmpVar.expr);
 
-			    currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {kScratchRegs[0], tmpVar});
+			    if (tmpVar.isConst) {
+			        tmpVar.expr = currentCFG->create_new_tempvar(Type::INT);
+			        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {tmpVar.expr, std::to_string(tmpVar.value)});
+			    }
+
+			    currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {kScratchRegs[0], tmpVar.expr});
 			    currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {std::to_string(offset), kScratchRegs[0]});
 
 			    argOffsets.push_back(std::to_string(offset));
@@ -114,32 +119,43 @@ antlrcpp::Any CodeGenVisitor::visitFunctionCallStatement(ifccParser::FunctionCal
 
     std::string resVar = currentCFG->create_new_tempvar(Type::INT);
 	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::call, Type::INT, {ctx->NAME()->getText(), resVar, external});
-	return resVar;
+	return ExprResult{false, -1, resVar};
 }
 
 antlrcpp::Any CodeGenVisitor::visitAssignStatement(ifccParser::AssignStatementContext *ctx) {
 	// Visit the expression, evaluating the right side and putting the result in %eax
-    std::string result;
+    ExprResult result;
     if (ctx->expr()) {
-        result = std::any_cast<std::string>(visit(ctx->expr()));
+        result = std::any_cast<ExprResult>(visit(ctx->expr()));
+
+        if (result.isConst) {
+            result.expr = currentCFG->create_new_tempvar(Type::INT);
+            currentCFG->current_bb->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {result.expr, std::to_string(result.value)});
+        }
 
         std::string varName = ctx->NAME()->getText();
 
         int offset = resolveVarOffset(varName);
-        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {kScratchRegs[0], result});
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {kScratchRegs[0], result.expr});
         currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {std::to_string(offset), kScratchRegs[0]});
     }
 
     currentCFG->clear_temporary_variables();
 
-	return result;
+	return ExprResult{false, -1, result.expr};
 }
 
 antlrcpp::Any CodeGenVisitor::visitReturnStatement(ifccParser::ReturnStatementContext *ctx) {
 	// Evaluate the result of the expression (if present — void functions have no return expr)
 	if (ctx->expr()) {
-		std::string result = std::any_cast<std::string>(visit(ctx->expr()));
-	    currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {kReturnReg, result});
+		ExprResult result = std::any_cast<ExprResult>(visit(ctx->expr()));
+
+	    if (result.isConst) {
+	        result.expr = currentCFG->create_new_tempvar(Type::INT);
+	        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {result.expr, std::to_string(result.value)});
+	    }
+
+	    currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {kReturnReg, result.expr});
 	}
 
 	// Add jump to function exit block
@@ -162,12 +178,17 @@ antlrcpp::Any CodeGenVisitor::visitIfStatement(ifccParser::IfStatementContext *c
     BasicBlock *end_if_block = new BasicBlock(currentCFG, currentCFG->new_BB_name());
 
     currentCFG->add_bb(test_block);
-    std::string resBool = std::any_cast<std::string>(visit(ctx->expr()));
+    ExprResult resBool = std::any_cast<ExprResult>(visit(ctx->expr()));
+
+    if (resBool.isConst) {
+        resBool.expr = currentCFG->create_new_tempvar(Type::INT);
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {resBool.expr, std::to_string(resBool.value)});
+    }
 
     const std::string cstVar = currentCFG->create_new_tempvar(Type::INT);
     const std::string resVar = currentCFG->create_new_tempvar(Type::INT);
     test_block->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {cstVar, "1"});
-    test_block->add_IRInstr(IRInstr::Operation::cmp_eq, Type::INT, {resBool, cstVar, resVar});
+    test_block->add_IRInstr(IRInstr::Operation::cmp_eq, Type::INT, {resBool.expr, cstVar, resVar});
     test_block->add_IRInstr(IRInstr::Operation::je, Type::VOID, {then_block->label});
 
     if (else_flag) {
@@ -216,13 +237,18 @@ antlrcpp::Any CodeGenVisitor::visitWhileStatement(ifccParser::WhileStatementCont
     BasicBlock *end_while_block = new BasicBlock(currentCFG, currentCFG->new_BB_name());
 
     currentCFG->add_bb(test_block);
-    std::string resBool = std::any_cast<std::string>(visit(ctx->expr()));
+    ExprResult resBool = std::any_cast<ExprResult>(visit(ctx->expr()));
+
+    if (resBool.isConst) {
+        resBool.expr = currentCFG->create_new_tempvar(Type::INT);
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {resBool.expr, std::to_string(resBool.value)});
+    }
 
     const std::string cstVar = currentCFG->create_new_tempvar(Type::INT);
     const std::string resVar = currentCFG->create_new_tempvar(Type::INT);
 
     test_block->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {cstVar, "1"});
-    test_block->add_IRInstr(IRInstr::Operation::cmp_eq, Type::INT, {resBool, cstVar, resVar});
+    test_block->add_IRInstr(IRInstr::Operation::cmp_eq, Type::INT, {resBool.expr, cstVar, resVar});
 
     test_block->add_IRInstr(IRInstr::Operation::je, Type::VOID, {then_block->label});
     test_block->add_IRInstr(IRInstr::Operation::jmp, Type::VOID, {end_while_block->label});
@@ -270,19 +296,31 @@ antlrcpp::Any CodeGenVisitor::visitBlock(ifccParser::BlockContext *ctx) {
 // ~~~~~~~~ Expressions ~~~~~~~~
 
 antlrcpp::Any CodeGenVisitor::visitUnaryExpr(ifccParser::UnaryExprContext *ctx) {
-	std::string expr = std::any_cast<std::string>(visit(ctx->expr_unary()));
+	ExprResult expr = std::any_cast<ExprResult>(visit(ctx->expr_unary()));
 
 	if (ctx->op) {
-	    std::string resVar = currentCFG->create_new_tempvar(Type::INT);
-        if (ctx->op->getText() == "-") {
-            currentCFG->current_bb->add_IRInstr(IRInstr::Operation::negl, Type::INT, {expr, resVar});
-        } else if (ctx->op->getText() == "+") {
-            currentCFG->current_bb->add_IRInstr(IRInstr::Operation::plus, Type::INT, {});
-        }else if (ctx->op->getText() == "!") {
-            currentCFG->current_bb->add_IRInstr(IRInstr::Operation::notl, Type::INT, {expr, resVar});
+	    if (expr.isConst) {
+            int value = expr.value;
+            if (ctx->op->getText() == "-") {
+                value = -value;
+            } else if (ctx->op->getText() == "+") {
+                // value remains the same
+            } else if (ctx->op->getText() == "!") {
+                value = !value;
+            }
+            return ExprResult{true, value, ""};
         }
 
-	    return resVar;
+	    std::string resVar = currentCFG->create_new_tempvar(Type::INT);
+        if (ctx->op->getText() == "-") {
+            currentCFG->current_bb->add_IRInstr(IRInstr::Operation::negl, Type::INT, {expr.expr, resVar});
+        } else if (ctx->op->getText() == "+") {
+            currentCFG->current_bb->add_IRInstr(IRInstr::Operation::plus, Type::INT, {expr.expr, resVar});
+        }else if (ctx->op->getText() == "!") {
+            currentCFG->current_bb->add_IRInstr(IRInstr::Operation::notl, Type::INT, {expr.expr, resVar});
+        }
+
+	    return ExprResult{false, -1, resVar};
     }
 
 	return expr;
@@ -294,10 +332,15 @@ antlrcpp::Any CodeGenVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx) {
 		if (args) {
 			std::vector<std::string> argOffsets;
 			for (ifccParser::ExprContext* argExpr : args->expr()) {
-				const std::string tmpVar = std::any_cast<std::string>(visit(argExpr));
-			    int offset = currentCFG->getRootSymbolTable()->getVariableOffset(tmpVar);
+				ExprResult tmpVar = std::any_cast<ExprResult>(visit(argExpr));
+			    int offset = currentCFG->getRootSymbolTable()->getVariableOffset(tmpVar.expr);
 
-			    currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {kScratchRegs[0], tmpVar});
+			    if (tmpVar.isConst) {
+			        tmpVar.expr = currentCFG->create_new_tempvar(Type::INT);
+			        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {tmpVar.expr, std::to_string(tmpVar.value)});
+			    }
+
+			    currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {kScratchRegs[0], tmpVar.expr});
 			    currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {std::to_string(offset), kScratchRegs[0]});
 
                 argOffsets.push_back(std::to_string(offset));
@@ -315,16 +358,13 @@ antlrcpp::Any CodeGenVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx) {
 
     std::string resVar = currentCFG->create_new_tempvar(Type::INT);
 	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::call, Type::INT, {ctx->NAME()->getText(), resVar, external});
-	return resVar;
+	return ExprResult{false, -1, resVar};
 }
 
 antlrcpp::Any CodeGenVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx) {
 	std::string constValue = ctx->CONST()->getText();
 
-    std::string tmpVar = currentCFG->create_new_tempvar(Type::INT);
-	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {tmpVar, constValue});
-
-    return tmpVar;
+    return ExprResult{true, stoi(constValue), ""};
 }
 
 antlrcpp::Any CodeGenVisitor::visitCharConstExpr(ifccParser::CharConstExprContext *ctx) {
@@ -354,90 +394,226 @@ antlrcpp::Any CodeGenVisitor::visitCharConstExpr(ifccParser::CharConstExprContex
     const std::string tmpVar = currentCFG->create_new_tempvar(Type::INT);
 	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::ldconst, Type::INT,
 		{tmpVar, std::to_string(value)});
-	return tmpVar;
+	return ExprResult{true, value, tmpVar};
 }
 
 antlrcpp::Any CodeGenVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
 	std::string varName = ctx->NAME()->getText();
     int offset = resolveVarOffset(varName);
 
-	return std::to_string(offset);
+	return ExprResult{false, -1, std::to_string(offset)};
 }
 
 antlrcpp::Any CodeGenVisitor::visitAddSub(ifccParser::AddSubContext *ctx) {
-	std::string lExpr = std::any_cast<std::string>(visit(ctx->lExpr));
-    std::string rExpr = std::any_cast<std::string>(visit(ctx->rExpr));
+	ExprResult lExpr = std::any_cast<ExprResult>(visit(ctx->lExpr));
+    ExprResult rExpr = std::any_cast<ExprResult>(visit(ctx->rExpr));
+
+    if (lExpr.isConst && rExpr.isConst) {
+        // If both sides are constant, we can compute the result at compile time
+        int lValue = lExpr.value;
+        int rValue = rExpr.value;
+        if (ctx->op->getText() == "+") {
+            int resultValue = lValue + rValue;
+
+            return ExprResult{true, resultValue, ""};
+        } else if (ctx->op->getText() == "-") {
+            int resultValue = lValue - rValue;
+
+            return ExprResult{true, resultValue, ""};
+        }
+    }
+
+    if (lExpr.isConst) {
+        lExpr.expr = currentCFG->create_new_tempvar(Type::INT);
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {lExpr.expr, std::to_string(lExpr.value)});
+    }
+    if (rExpr.isConst) {
+        rExpr.expr = currentCFG->create_new_tempvar(Type::INT);
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {rExpr.expr, std::to_string(rExpr.value)});
+    }
 
     const std::string resVar = currentCFG->create_new_tempvar(Type::INT);
     if (ctx->op->getText() == "+") {
-    	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::add, Type::INT, {lExpr, rExpr, resVar});
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::add, Type::INT, {lExpr.expr, rExpr.expr, resVar});
     } else if (ctx->op->getText() == "-") {
-    	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::sub, Type::INT, {lExpr, rExpr, resVar});
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::sub, Type::INT, {lExpr.expr, rExpr.expr, resVar});
     }
 
-	return resVar;
+	return ExprResult{false, -1, resVar};
 }
 
 antlrcpp::Any CodeGenVisitor::visitMultDiv(ifccParser::MultDivContext *ctx) {
-    std::string lExpr = std::any_cast<std::string>(visit(ctx->lExpr));
-    std::string rExpr = std::any_cast<std::string>(visit(ctx->rExpr));
+    ExprResult lExpr = std::any_cast<ExprResult>(visit(ctx->lExpr));
+    ExprResult rExpr = std::any_cast<ExprResult>(visit(ctx->rExpr));
+
+    if (lExpr.isConst && rExpr.isConst) {
+        // If both sides are constant, we can compute the result at compile time
+        int lValue = lExpr.value;
+        int rValue = rExpr.value;
+        if (ctx->MULTOP()->getText() == "*") {
+            int resultValue = lValue * rValue;
+
+            return ExprResult{true, resultValue, ""};
+        } else if (ctx->MULTOP()->getText() == "/" && (rValue != 0)) {
+            int resultValue = lValue / rValue;
+
+            return ExprResult{true, resultValue, ""};
+        } else if (ctx->MULTOP()->getText() == "%" && (rValue != 0)) {
+            int resultValue = lValue % rValue;
+
+            return ExprResult{true, resultValue, ""};
+        }
+    }
+
+    if (lExpr.isConst && !(ctx->MULTOP()->getText() == "*" && lExpr.value == 0)) {
+        lExpr.expr = currentCFG->create_new_tempvar(Type::INT);
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {lExpr.expr, std::to_string(lExpr.value)});
+    }
+    if (rExpr.isConst && !(ctx->MULTOP()->getText() == "*" && rExpr.value == 0)) {
+        rExpr.expr = currentCFG->create_new_tempvar(Type::INT);
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {rExpr.expr, std::to_string(rExpr.value)});
+    }
 
     const std::string resVar = currentCFG->create_new_tempvar(Type::INT);
     if (ctx->MULTOP()->getText() == "*") {
-    	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::mul, Type::INT, {lExpr, rExpr, resVar});
+
+        if (lExpr.isConst && lExpr.value == 0) {
+            return ExprResult{true, 0, ""};
+        } else if (rExpr.isConst && rExpr.value == 0) {
+            currentCFG->current_bb->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {resVar, "0"});
+            return ExprResult{true, 0, ""};
+        }
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::mul, Type::INT, {lExpr.expr, rExpr.expr, resVar});
+
     } else if (ctx->MULTOP()->getText() == "/") {
-            currentCFG->current_bb->add_IRInstr(IRInstr::Operation::div, Type::INT, {lExpr, rExpr, resVar});
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::div, Type::INT, {lExpr.expr, rExpr.expr, resVar});
     } else if (ctx->MULTOP()->getText() == "%") {
-        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::mod, Type::INT, {lExpr, rExpr, resVar});
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::mod, Type::INT, {lExpr.expr, rExpr.expr, resVar});
     }
 
-	return resVar;
+    return ExprResult{false, -1, resVar};
 }
 
 antlrcpp::Any CodeGenVisitor::visitBitWise(ifccParser::BitWiseContext *ctx) {
-    std::string lExpr = std::any_cast<std::string>(visit(ctx->lExpr));
-    std::string rExpr = std::any_cast<std::string>(visit(ctx->rExpr));
+    ExprResult lExpr = std::any_cast<ExprResult>(visit(ctx->lExpr));
+    ExprResult rExpr = std::any_cast<ExprResult>(visit(ctx->rExpr));
+
+    if (lExpr.isConst && rExpr.isConst) {
+        // If both sides are constant, we can compute the result at compile time
+        int lValue = lExpr.value;
+        int rValue = rExpr.value;
+        if (ctx->BITOP()->getText() == "&") {
+            int resultValue = lValue & rValue;
+
+            return ExprResult{true, resultValue, ""};
+        } else if (ctx->BITOP()->getText() == "|") {
+            int resultValue = lValue | rValue;
+
+            return ExprResult{true, resultValue, ""};
+        } else if (ctx->BITOP()->getText() == "^") {
+            int resultValue = lValue ^ rValue;
+
+            return ExprResult{true, resultValue, ""};
+        }
+    }
+
+    if (lExpr.isConst) {
+        lExpr.expr = currentCFG->create_new_tempvar(Type::INT);
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {lExpr.expr, std::to_string(lExpr.value)});
+    }
+    if (rExpr.isConst) {
+        rExpr.expr = currentCFG->create_new_tempvar(Type::INT);
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {rExpr.expr, std::to_string(rExpr.value)});
+    }
 
     const std::string resVar = currentCFG->create_new_tempvar(Type::INT);
     if (ctx->BITOP()->getText() == "&") {
-        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::band, Type::INT, {lExpr, rExpr, resVar});
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::band, Type::INT, {lExpr.expr, rExpr.expr, resVar});
     } else if (ctx->BITOP()->getText() == "|") {
-        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::bor, Type::INT, {lExpr, rExpr, resVar});
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::bor, Type::INT, {lExpr.expr, rExpr.expr, resVar});
     } else if (ctx->BITOP()->getText() == "^") {
-        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::bxor, Type::INT, {lExpr, rExpr, resVar});
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::bxor, Type::INT, {lExpr.expr, rExpr.expr, resVar});
     }
 
-    return resVar;
+    return ExprResult{false, -1, resVar};
 }
 
 antlrcpp::Any CodeGenVisitor::visitPar(ifccParser::ParContext *ctx) {
-	std::string expr = std::any_cast<std::string>(visit(ctx->expr()));
+	ExprResult expr = std::any_cast<ExprResult>(visit(ctx->expr()));
 
 	return expr;
 }
 
 antlrcpp::Any CodeGenVisitor::visitComp(ifccParser::CompContext *ctx) {
-    std::string lExpr = std::any_cast<std::string>(visit(ctx->lExpr));
-    std::string rExpr = std::any_cast<std::string>(visit(ctx->rExpr));
+    ExprResult lExpr = std::any_cast<ExprResult>(visit(ctx->lExpr));
+    ExprResult rExpr = std::any_cast<ExprResult>(visit(ctx->rExpr));
+
+    if (lExpr.isConst && rExpr.isConst) {
+        // If both sides are constant, we can compute the result at compile time
+        int lValue = lExpr.value;
+        int rValue = rExpr.value;
+	    if (ctx->COMPOP()->getText() == "<") {
+            int resultValue = lValue < rValue;
+
+            return ExprResult{true, resultValue, ""};
+	    } else if (ctx->COMPOP()->getText() == ">") {
+            int resultValue = lValue > rValue;
+
+            return ExprResult{true, resultValue, ""};
+        }
+    }
+
+    if (lExpr.isConst) {
+        lExpr.expr = currentCFG->create_new_tempvar(Type::INT);
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {lExpr.expr, std::to_string(lExpr.value)});
+    }
+    if (rExpr.isConst) {
+        rExpr.expr = currentCFG->create_new_tempvar(Type::INT);
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {rExpr.expr, std::to_string(rExpr.value)});
+    }
 
     const std::string resVar = currentCFG->create_new_tempvar(Type::INT);
 	if (ctx->COMPOP()->getText() == "<") {
-		currentCFG->current_bb->add_IRInstr(IRInstr::Operation::cmp_lt, Type::INT, {lExpr, rExpr, resVar});
+		currentCFG->current_bb->add_IRInstr(IRInstr::Operation::cmp_lt, Type::INT, {lExpr.expr, rExpr.expr, resVar});
 	} else if (ctx->COMPOP()->getText() == ">") {
-		currentCFG->current_bb->add_IRInstr(IRInstr::Operation::cmp_gt, Type::INT, {lExpr, rExpr, resVar});
+		currentCFG->current_bb->add_IRInstr(IRInstr::Operation::cmp_gt, Type::INT, {lExpr.expr, rExpr.expr, resVar});
 	}
-	return resVar;
+	return ExprResult{false, -1, resVar};
 }
 
 antlrcpp::Any CodeGenVisitor::visitEQ(ifccParser::EQContext *ctx) {
-    std::string lExpr = std::any_cast<std::string>(visit(ctx->lExpr));
-    std::string rExpr = std::any_cast<std::string>(visit(ctx->rExpr));
+    ExprResult lExpr = std::any_cast<ExprResult>(visit(ctx->lExpr));
+    ExprResult rExpr = std::any_cast<ExprResult>(visit(ctx->rExpr));
+
+    if (lExpr.isConst && rExpr.isConst) {
+        // If both sides are constant, we can compute the result at compile time
+        int lValue = lExpr.value;
+        int rValue = rExpr.value;
+	    if (ctx->EQOP()->getText() == "==") {
+            int resultValue = lValue == rValue;
+
+            return ExprResult{true, resultValue, ""};
+	    } else if (ctx->EQOP()->getText() == "!=") {
+            int resultValue = lValue != rValue;
+
+            return ExprResult{true, resultValue, ""};
+        }
+    }
+
+    if (lExpr.isConst) {
+        lExpr.expr = currentCFG->create_new_tempvar(Type::INT);
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {lExpr.expr, std::to_string(lExpr.value)});
+    }
+    if (rExpr.isConst) {
+        rExpr.expr = currentCFG->create_new_tempvar(Type::INT);
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {rExpr.expr, std::to_string(rExpr.value)});
+    }
 
     const std::string resVar = currentCFG->create_new_tempvar(Type::INT);
 	if (ctx->EQOP()->getText() == "==") {
-		currentCFG->current_bb->add_IRInstr(IRInstr::Operation::cmp_eq, Type::INT, {lExpr, rExpr, resVar});
+		currentCFG->current_bb->add_IRInstr(IRInstr::Operation::cmp_eq, Type::INT, {lExpr.expr, rExpr.expr, resVar});
 	} else if (ctx->EQOP()->getText() == "!=") {
-		currentCFG->current_bb->add_IRInstr(IRInstr::Operation::cmp_ne, Type::INT, {lExpr, rExpr, resVar});
+		currentCFG->current_bb->add_IRInstr(IRInstr::Operation::cmp_ne, Type::INT, {lExpr.expr, rExpr.expr, resVar});
 	}
-	return resVar;
+	return ExprResult{false, -1, resVar};
 }
