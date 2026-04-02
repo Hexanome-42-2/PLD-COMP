@@ -66,7 +66,7 @@ CONST 		    : [0-9]+ ;
 CHAR_CONST	    : '\'' ( '\\' . | ~['\\] ) '\'' ;
 COMMENT 	    : ('/*' .*? '*/' | '//' .*? '\n') -> skip ;
 INCLUDE			 	: 'include' ;
-HEADER_LIB			: '<' ~[>\r\n]+ '>' ;
+HEADER_LIB			: '<' [a-zA-Z0-9_./-]+ '>' ;
 HEADER_LOCAL		: '"' ~["\r\n]+ '"' ;
 OTHER_DIRECTIVE		: '#' ~[\r\n]* '\n' -> skip ;
 WS    				: [ \t\r\n] -> channel(HIDDEN);
