@@ -5,6 +5,10 @@
 #include<unordered_map>
 #include<string>
 
+
+inline const int kStackFrameSize = 160;  // todo: replace with computed size
+
+
 class BasicBlock;
 
 // Class for the Control Flow Graph (CFG)

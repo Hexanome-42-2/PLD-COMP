@@ -23,7 +23,11 @@ jobs:
           echo "matrix=$TESTS" >> $GITHUB_OUTPUT
 
   prepare-antlr:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [ x86_64, arm64 ]
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,7 +37,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/antlr4-install
-          key: ${{ runner.os }}-antlr4-4.13.2
+          key: antlr4-${{ runner.os }}-${{ runner.arch }}-4.13.2
 
       - name: Install ANTLR (if cache miss)
         if: steps.antlr-cache.outputs.cache-hit != 'true'
@@ -54,14 +58,15 @@ jobs:
   # Run each tests
   test-suite:
     needs: [discover-tests, prepare-antlr]
-    runs-on: [self-hosted, linux, x64, slim]
-
     strategy:
       fail-fast: false # To continue running all tests even if one fails
       matrix:
+        arch: [x86_64, arm64]
         test-file: ${{ fromJson(needs.discover-tests.outputs.matrix) }}
 
-    name: Test ${{ matrix.test-file }}
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    name: Test ${{ matrix.test-file }} (\${{ matrix.arch }})
+
 
     steps:
       - name: Checkout
@@ -71,7 +76,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/antlr4-install
-          key: ${{ runner.os }}-antlr4-4.13.2
+          key: antlr4-${{ runner.os }}-${{ runner.arch }}-4.13.2
 
       - name: Create config.mk
         run: |
