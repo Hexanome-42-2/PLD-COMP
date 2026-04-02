@@ -10,6 +10,7 @@ antlrcpp::Any CodeGenVisitor::visitFunction(ifccParser::FunctionContext *ctx) {
 	// 1. Create a new CFG for this function and add it to the map
 	std::string functionName = ctx->funcName->getText();
 	currBlockIndex = 0; // Reset block index for new function
+
 	CFG* oldCFG = currentCFG; // Save the current CFG to restore it later
 	currentCFG = new CFG((*functionSymbolTables)[functionName], functionName);
 
@@ -28,15 +29,15 @@ antlrcpp::Any CodeGenVisitor::visitFunction(ifccParser::FunctionContext *ctx) {
 			for (size_t i = 0; i < paramNames.size() && i < kArgRegs.size(); ++i) {
 				std::string paramName = paramNames[i]->getText();
 				int offset = (*functionSymbolTables)[functionName]->getVariableOffset(paramName);
-                declaredVars.back()[paramName] = offset;
+			    declaredVars.back()[paramName] = offset;
 				currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT,
-					{paramNames[i]->getText(), kArgRegs[i]});
+					{std::to_string(offset), kArgRegs[i]});
 			}
 		}
 	}
 
 	// 2. Visit the function block to generate IR
-	visit(ctx->block());
+	visitChildren(ctx->block());
     declaredVars.pop_back();
 
     // 3. Update max stack size
@@ -55,17 +56,23 @@ antlrcpp::Any CodeGenVisitor::visitDeclareStatement(ifccParser::DeclareStatement
         // get variable info from symbol table to find its offset
         VarInfo* info = currentCFG->getSymbolTable()->getLocalVariable(varName);
         std::cerr << "DEBUG visitDeclare: varName='" << varName << "' info=" << info << std::endl;
-        if (info) std::cerr << "  -> offset=" << info->index << std::endl;
+
+        if (!info) {
+            std::cerr << "Error: Variable '" << varName << "' is not declared in the current scope." << std::endl;
+            continue; // Skip this variable and continue with the next one
+        }
+
         int offset = info->index;
 
         // Add the variable to the current scope's declared variables
         declaredVars.back()[varName] = offset;
 
-        // Generate the initialization code if present
+        // // Generate the initialization code if present
         if (Node->expr()) {
-            visit(Node->expr());
-            currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT,
-                {std::to_string(offset), "eax"});
+            std::string result = std::any_cast<std::string>(visit(Node->expr()));
+
+            currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {kScratchRegs[0], result});
+            currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {std::to_string(offset), kScratchRegs[0]});
         }
     }
     return 0;
@@ -79,6 +86,10 @@ antlrcpp::Any CodeGenVisitor::visitFunctionCallStatement(ifccParser::FunctionCal
 			for (ifccParser::ExprContext* argExpr : args->expr()) {
 				const std::string tmpVar = std::any_cast<std::string>(visit(argExpr));
 			    int offset = currentCFG->getRootSymbolTable()->getVariableOffset(tmpVar);
+
+			    currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {kScratchRegs[0], tmpVar});
+			    currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {std::to_string(offset), kScratchRegs[0]});
+
 			    argOffsets.push_back(std::to_string(offset));
 			}
 
@@ -100,6 +111,7 @@ antlrcpp::Any CodeGenVisitor::visitAssignStatement(ifccParser::AssignStatementCo
         result = std::any_cast<std::string>(visit(ctx->expr()));
 
         std::string varName = ctx->NAME()->getText();
+
         int offset = resolveVarOffset(varName);
         currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {kScratchRegs[0], result});
         currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {std::to_string(offset), kScratchRegs[0]});
@@ -117,9 +129,6 @@ antlrcpp::Any CodeGenVisitor::visitReturnStatement(ifccParser::ReturnStatementCo
 
 	// Add jump to function exit block
 	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::jmp, Type::VOID, {currentCFG->get_name() + "_exit"});
-
-    currentCFG->current_bb->add_IRInstr(IRInstr::Operation::jmp, Type::VOID,
-        {currentCFG->getName() + "_exit"});
 
 	return 0;
 }
@@ -240,8 +249,6 @@ antlrcpp::Any CodeGenVisitor::visitBlock(ifccParser::BlockContext *ctx) {
     visitChildren(ctx);
     declaredVars.pop_back();
 
-    declaredVars.pop_back();
-
     if (blockTable != nullptr) {
         blockTable->updateStackSize();
     }
@@ -278,6 +285,10 @@ antlrcpp::Any CodeGenVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx) {
 			for (ifccParser::ExprContext* argExpr : args->expr()) {
 				const std::string tmpVar = std::any_cast<std::string>(visit(argExpr));
 			    int offset = currentCFG->getRootSymbolTable()->getVariableOffset(tmpVar);
+
+			    currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {kScratchRegs[0], tmpVar});
+			    currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {std::to_string(offset), kScratchRegs[0]});
+
                 argOffsets.push_back(std::to_string(offset));
 			}
 
@@ -335,7 +346,7 @@ antlrcpp::Any CodeGenVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
 	std::string varName = ctx->NAME()->getText();
     int offset = resolveVarOffset(varName);
 
-	return varName;
+	return std::to_string(offset);
 }
 
 antlrcpp::Any CodeGenVisitor::visitAddSub(ifccParser::AddSubContext *ctx) {
@@ -404,9 +415,8 @@ antlrcpp::Any CodeGenVisitor::visitComp(ifccParser::CompContext *ctx) {
 }
 
 antlrcpp::Any CodeGenVisitor::visitEQ(ifccParser::EQContext *ctx) {
-		visit(ctx->lExpr);
-	const std::string tmpVar = currentCFG->create_new_tempvar(Type::INT);
-	currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {tmpVar, "eax"});
+    std::string lExpr = std::any_cast<std::string>(visit(ctx->lExpr));
+    std::string rExpr = std::any_cast<std::string>(visit(ctx->rExpr));
 
     const std::string resVar = currentCFG->create_new_tempvar(Type::INT);
 	if (ctx->EQOP()->getText() == "==") {

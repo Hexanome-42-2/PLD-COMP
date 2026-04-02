@@ -67,7 +67,7 @@ void CFG::gen_asm_prologue(std::ostream& output) {
     #elif (defined(__aarch64__) || defined(_M_ARM64) || defined(DEV_ARCH_ARM64)) && not defined(DEV_ARCH_X86_64)
         output << "    push {fp, lr}\n";
         output << "    add	fp, sp, #0\n";
-        output << "    sub	sp, sp, #"<< kStackFrameSize << "\n";
+        output << "    sub	sp, sp, #"<< rootSymbolTable->getStackSize() << "\n";
     #else
         #error Architecture not supported. Please define gen_asm_prologue for your target architecture.
     #endif

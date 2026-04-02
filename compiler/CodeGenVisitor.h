@@ -37,7 +37,7 @@ class  CodeGenVisitor : public ifccBaseVisitor {
 					return it->second;}
 			}
 
-			int offset = currentCFG->getRootSymbolTable()->getVariableOffset(name);
+			 int offset = currentCFG->getRootSymbolTable()->getVariableOffset(name);
    			 std::cerr << "  -> fallback rootSymbolTable offset=" << offset << std::endl;
    			 return offset;
 
