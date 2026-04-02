@@ -63,7 +63,7 @@ void CFG::gen_asm_prologue(std::ostream& output) {
     #if (defined(__x86_64__) || defined(_M_X64) || defined(DEV_ARCH_X86_64)) && not defined(DEV_ARCH_ARM64)
         output << "    pushq %rbp\n";
         output << "    movq %rsp, %rbp\n";
-        output << "    subq $" << kStackFrameSize << ", %rsp\n";
+        output << "    subq $" << rootSymbolTable->getStackSize() << ", %rsp\n";
     #elif (defined(__aarch64__) || defined(_M_ARM64) || defined(DEV_ARCH_ARM64)) && not defined(DEV_ARCH_X86_64)
         output << "    push {fp, lr}\n";
         output << "    add	fp, sp, #0\n";

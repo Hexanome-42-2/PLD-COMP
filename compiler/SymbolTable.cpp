@@ -10,6 +10,17 @@ Type stringToType(const std::string& typeStr) {
     }
 }
 
+int typeSizeOf(Type type) {
+    switch (type) {
+        case Type::INT:
+            return 4;
+        case Type::VOID:
+            return 0; // Void has no size
+        default:
+            return 0;
+    }
+}
+
 SymbolTable::~SymbolTable() {
 
 }
@@ -119,3 +130,11 @@ void SymbolTable::printSymbolTable() const {
     }
 }
 
+void SymbolTable::updateStackSize() {
+    stackSize -= maxOffset;
+    if (parent != nullptr) {
+        // Update the parent's stack size if this scope requires more space
+        parent->stackSize = std::max(parent->stackSize, stackSize);
+    }
+    std::cerr << "DEBUG updateStackSize: " << stName << " stackSize = " << stackSize << std::endl;
+}

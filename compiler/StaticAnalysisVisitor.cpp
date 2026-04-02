@@ -63,7 +63,7 @@ std::any StaticAnalysisVisitor::visitFunction(ifccParser::FunctionContext *ctx) 
 
 	SymbolTable* functionTable = new SymbolTable();
 	(*allSymbolTables)[functionName] = functionTable;
-	SymbolTable* oldSymbolTable = currSymbolTable;
+	SymbolTable* oldSymbolTable = currSymbolTable; // legacy, can remove lines x, x+1 and x+19
 	currSymbolTable = functionTable;
 	currIndex = 0; // Reset block index for new function
 	currentFunctionName = functionName;
@@ -73,8 +73,8 @@ std::any StaticAnalysisVisitor::visitFunction(ifccParser::FunctionContext *ctx) 
 		if (params) {
 			for (antlr4::tree::TerminalNode* varNode : params->NAME()) {
 				std::string paramName = varNode->getText();
-				currSymbolTable->addVariable(paramName);
-//					currSymbolTable->MarkUsed(paramName); // are params considered "used" ?
+				functionTable->addVariable(paramName);
+//					functionTable->MarkUsed(paramName); // are params considered "used" ?
 			}
 		}
 	}

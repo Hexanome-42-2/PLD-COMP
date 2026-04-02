@@ -47,7 +47,7 @@ class CFG {
 	std::string getName() { return name; }
 
  protected:
-	SymbolTable* rootSymbolTable;  /**< the symbol table of the function this CFG represents. It is the root of a tree of symbol tables, one per block. */
+	SymbolTable * rootSymbolTable;  /**< the symbol table of the function this CFG represents. It is the root of a tree of symbol tables, one per block. */
  	SymbolTable * symbolTable; /**< part of the symbol table  */
 	int nextBBnumber; /**< just for naming */
 
@@ -60,7 +60,7 @@ class CFGContainer : CFG {
         std::unordered_map <std::string, CFG*> cfgs;
 		std::unordered_map <std::string, SymbolTable*> *symbolTables;
     public:
-		CFGContainer(std::unordered_map <std::string, SymbolTable*> *symbolTables) : symbolTables(symbolTables), CFG(nullptr, "") {};
+		CFGContainer(std::unordered_map <std::string, SymbolTable*> *allSymbolTables) : symbolTables(allSymbolTables), CFG(nullptr, "") {};
 		~CFGContainer();
 		void add_cfg(std::string name, CFG* cfg);
 		CFG* get_cfg(std::string name);

@@ -7,6 +7,7 @@
 enum Type {INT, VOID, ERROR};
 
 Type stringToType(const std::string& typeStr);
+int typeSizeOf(Type type);
 
 // Structure to store variable metadata
 struct VarInfo {
@@ -19,6 +20,7 @@ class SymbolTable {
     private:
         SymbolTable* parent; // Pointer to the parent symbol table (for nested scopes)
         std::string stName; // SymbolTableName
+        int stackSize = 0; // Total size of the stack frame for this scope
         std::unordered_map<std::string, VarInfo> symbolTable;
         int varOffset = 0; // Start at 0 and decrement by 4 for each new variable
         int tmpOffset = 0; // Start at 0 and increment by 4 for each new temporary variable
@@ -35,6 +37,8 @@ class SymbolTable {
         };
         ~SymbolTable();
         std::string getName() const { return stName; }
+        void updateStackSize(); // Once the scope is processed, add stacksize padding and update the parent's max stackSize (amongst siblings)
+        int getStackSize() const { return stackSize; }
         void addVariable(const std::string& name);
         const std::string addTemporaryVariable();
         VarInfo* getVariable(const std::string& name);

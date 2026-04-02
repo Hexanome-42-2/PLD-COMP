@@ -39,7 +39,10 @@ antlrcpp::Any CodeGenVisitor::visitFunction(ifccParser::FunctionContext *ctx) {
 	visit(ctx->block());
     declaredVars.pop_back();
 
-    // 3. Restore locations
+    // 3. Update max stack size
+    currentCFG->getSymbolTable()->updateStackSize();
+
+    // 4. Restore locations
     currentCFG = oldCFG; // Restore the previous CFG
 
     return 0;
@@ -237,6 +240,11 @@ antlrcpp::Any CodeGenVisitor::visitBlock(ifccParser::BlockContext *ctx) {
     visitChildren(ctx);
     declaredVars.pop_back();
 
+    declaredVars.pop_back();
+
+    if (blockTable != nullptr) {
+        blockTable->updateStackSize();
+    }
     currentCFG->setSymbolTable(oldTable);
     return 0;
 }
