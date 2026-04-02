@@ -69,6 +69,34 @@ gui:
 	javac -cp $(ANTLRJAR) -d build generated/*.java
 	java -cp $(ANTLRJAR):build org.antlr.v4.gui.TestRig ifcc axiom -gui $(FILE)
 
+
+##########################################
+# run the test suite (many files, many archs)
+
+# Default full test suite (host/default arch)
+test: ifcc
+	python3 ../ifcc-test.py ../testfiles
+
+# Single file test: make test-file FILE=../testfiles/001_return42.c
+test-file: ifcc
+	@if [ -z "$(FILE)" ]; then \
+		echo "Usage: make test-file FILE=path/to/file.c"; \
+		exit 1; \
+	fi
+	python3 ../ifcc-test.py $(FILE)
+
+# One explicit arch: make test-arch ARCH=DEV_ARCH_ARM64
+test-arch: ifcc
+	@if [ -z "$(ARCH)" ]; then \
+		echo "Usage: make test-arch ARCH=DEV_ARCH_X86_64|DEV_ARCH_ARM64"; \
+		exit 1; \
+	fi
+	python3 ../ifcc-test.py --arch $(ARCH) ../testfiles
+
+# Multiple archs in one go
+test-all-arch: ifcc
+	python3 ../ifcc-test.py --arch DEV_ARCH_X86_64 --arch DEV_ARCH_ARM64 ../testfiles
+
 ##########################################
 # delete all machine-generated files
 clean:
