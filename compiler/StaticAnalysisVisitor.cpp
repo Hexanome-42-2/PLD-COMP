@@ -34,8 +34,8 @@ std::any StaticAnalysisVisitor::visitIncludeStatement(ifccParser::IncludeStateme
 		// If we were to implement the actual inclusion of the file, we would read its contents and parse it here.
 		// For now we'll manually add some common functions to the function signatures to allow testing of includes without implementing full file parsing.
 		if (filePath.find("stdio") != std::string::npos) { // Add the functions [putchar, getchar]
-			(*functionSignatures)["putchar"] = {"int", 1, true, false};
-			(*functionSignatures)["getchar"] = {"int", 0, true, false};
+			(*functionSignatures)["putchar"] = {Type::INT, 1, true, false};
+			(*functionSignatures)["getchar"] = {Type::INT, 0, true, false};
 		}
 	}
 	return 0;
@@ -54,10 +54,11 @@ std::any StaticAnalysisVisitor::visitProg(ifccParser::ProgContext *ctx) {
 		ifccParser::FunctionDeclarationContext* decl = dynamic_cast<ifccParser::FunctionDeclarationContext*>(funcCtx);
 		ifccParser::FunctionDefinitionContext* def = dynamic_cast<ifccParser::FunctionDefinitionContext*>(funcCtx);
 
+	    Type retTypeEnum;
 		if (decl) {
 			name = decl->funcName->getText();
 			retType = decl->functype->getText();
-		    Type retTypeEnum = stringToType(retType);
+		    retTypeEnum = stringToType(retType);
 
 			if (decl->parameters()) {
 				ifccParser::ParamListContext* params = dynamic_cast<ifccParser::ParamListContext*>(decl->parameters());
@@ -66,7 +67,9 @@ std::any StaticAnalysisVisitor::visitProg(ifccParser::ProgContext *ctx) {
 		} else if (def) {
 			name = def->funcName->getText();
 			retType = def->functype->getText();
+		    retTypeEnum = stringToType(retType);
 			isDef = true;
+
 			if (def->parameters()) {
 				ifccParser::ParamListContext* params = dynamic_cast<ifccParser::ParamListContext*>(def->parameters());
 				if (params) paramCount = params->NAME().size();
@@ -75,15 +78,14 @@ std::any StaticAnalysisVisitor::visitProg(ifccParser::ProgContext *ctx) {
 			continue;
 		}
 
-	        if (functionSignatures->count(name)) {
-	            // Already declared — just mark as defined if this is a definition
-	            if (isDef) {
-	                (*functionSignatures)[name].isDefined = true;
-	            }
-	        } else {
-	            (*functionSignatures)[name] = {retTypeEnum, paramCount, isVisitingInclude, isDef};
+	    if (functionSignatures->count(name)) {
+	        // Already declared — just mark as defined if this is a definition
+	        if (isDef) {
+	            (*functionSignatures)[name].isDefined = true;
 	        }
-		}
+	    } else {
+	        (*functionSignatures)[name] = {retTypeEnum, paramCount, isVisitingInclude, isDef};
+	    }
 	}
 
 	// === Pass 2: Visit all children for semantic analysis ===
@@ -148,14 +150,14 @@ std::any StaticAnalysisVisitor::visitFunctionDefinition(ifccParser::FunctionDefi
 	        hasError = true;
 	        return 0;
 	    } else {
-	        allSymbolTables = (*allSymbolTables)[functionName];
+	        functionTable = (*allSymbolTables)[functionName];
 	    }
 	}
 
     (*functionSignatures)[functionName].isDefined = true;
 
     if (!functionTable) {
-	    SymbolTable* allSymbolTables = new SymbolTable();
+	    functionTable = new SymbolTable();
 	    (*allSymbolTables)[functionName] = functionTable;
     }
 	SymbolTable* oldSymbolTable = currSymbolTable;

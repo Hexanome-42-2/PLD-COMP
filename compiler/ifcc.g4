@@ -55,19 +55,18 @@ expr_unary	: CONST							    # ConstExpr
 
 // ~~~~~~~~~~ LEXER Rules (Tokens) ~~~~~~~~~~ //
 
-MULTOP          : '*' | '/' | '%' ;
-BITOP           : '&' | '|' | '^' ;
-COMPOP          : '<' | '>' ;
-EQOP            : '==' | '!=' ;
-RETURN		    : 'return' ;
-TYPE		    : 'int' | 'void' ;
-NAME		    : [a-zA-Z_] [a-zA-Z0-9_]* ;
-CONST 		    : [0-9]+ ;
-CHAR_CONST	    : '\'' ( '\\' . | ~['\\] ) '\'' ;
-COMMENT 	    : ('/*' .*? '*/' | '//' .*? '\n') -> skip ;
+COMMENT 			: ('/*' .*? '*/' | '//' .*? '\n') -> skip ;
+MULTOP      		: '*' | '/' | '%' ;
+BITOP       		: '&' | '|' | '^' ;
+COMPOP      		: '<' | '>' ;
+EQOP       	 		: '==' | '!=' ;
 INCLUDE			 	: 'include' ;
 HEADER_LIB			: '<' [a-zA-Z0-9_./-]+ '>' ;
 HEADER_LOCAL		: '"' ~["\r\n]+ '"' ;
-OTHER_DIRECTIVE		: '#' ~[\r\n]* '\n' -> skip ;
+RETURN				: 'return' ;
+TYPE				: 'int' | 'void' ;
+NAME				: [a-zA-Z_] [a-zA-Z0-9_]* ;
+CONST 				: [0-9]+ ;
+CHAR_CONST	        : '\'' ( '\\' . | ~['\\] ) '\'' ;
 WS    				: [ \t\r\n] -> channel(HIDDEN);
 ANY					: .  -> skip ;
