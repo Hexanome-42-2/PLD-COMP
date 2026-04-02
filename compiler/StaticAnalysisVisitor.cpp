@@ -63,7 +63,8 @@ std::any StaticAnalysisVisitor::visitFunction(ifccParser::FunctionContext *ctx) 
 
 	SymbolTable* functionTable = new SymbolTable();
 	(*allSymbolTables)[functionName] = functionTable;
-	SymbolTable* oldSymbolTable = currSymbolTable; // legacy, can remove lines x, x+1 and x+19
+	SymbolTable* oldSymbolTable = currSymbolTable;
+
 	currSymbolTable = functionTable;
 	currIndex = 0; // Reset block index for new function
 	currentFunctionName = functionName;
@@ -74,10 +75,10 @@ std::any StaticAnalysisVisitor::visitFunction(ifccParser::FunctionContext *ctx) 
 			for (antlr4::tree::TerminalNode* varNode : params->NAME()) {
 				std::string paramName = varNode->getText();
 				functionTable->addVariable(paramName);
-//					functionTable->MarkUsed(paramName); // are params considered "used" ?
 			}
 		}
 	}
+
     // Visit the children of the block to not recreate the symbol table for the function body
 	visitChildren(ctx->block());
 
@@ -91,10 +92,7 @@ std::any StaticAnalysisVisitor::visitBlock(ifccParser::BlockContext *ctx) {
     currSymbolTable = blockTable;
 
     std::string blockName = currentFunctionName + "_" + std::to_string(currIndex++);
-	std::cerr << "DEBUG Static: creating block '" << blockName << "'" << std::endl;
 	(*allSymbolTables)[blockName] = blockTable;
-    //debug 
-    //blockTable->printSymbolTable();
 
     visitChildren(ctx);
 

@@ -27,21 +27,16 @@ class  CodeGenVisitor : public ifccBaseVisitor {
 
 
 		int resolveVarOffset(const std::string& name) {
-    		std::cerr << "DEBUG resolveVarOffset('" << name << "'), declaredVars.size()=" << declaredVars.size() << std::endl;
-
 			for (int i = (int)declaredVars.size() - 1; i >= 0; i--) {
 				auto it = declaredVars[i].find(name);
 				if (it != declaredVars[i].end()){
-					std::cerr << "  -> found at scope " << i << " offset=" << it->second << std::endl;
-
 					return it->second;}
 			}
 
 			 int offset = currentCFG->getRootSymbolTable()->getVariableOffset(name);
-   			 std::cerr << "  -> fallback rootSymbolTable offset=" << offset << std::endl;
    			 return offset;
-
 		}
+
 		virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
 		virtual antlrcpp::Any visitFunction(ifccParser::FunctionContext *ctx) override;
 		virtual antlrcpp::Any visitDeclareStatement(ifccParser::DeclareStatementContext *ctx) override;

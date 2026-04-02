@@ -55,7 +55,6 @@ antlrcpp::Any CodeGenVisitor::visitDeclareStatement(ifccParser::DeclareStatement
 
         // get variable info from symbol table to find its offset
         VarInfo* info = currentCFG->getSymbolTable()->getLocalVariable(varName);
-        std::cerr << "DEBUG visitDeclare: varName='" << varName << "' info=" << info << std::endl;
 
         if (!info) {
             std::cerr << "Error: Variable '" << varName << "' is not declared in the current scope." << std::endl;
@@ -67,7 +66,7 @@ antlrcpp::Any CodeGenVisitor::visitDeclareStatement(ifccParser::DeclareStatement
         // Add the variable to the current scope's declared variables
         declaredVars.back()[varName] = offset;
 
-        // // Generate the initialization code if present
+        // Generate the initialization code if present
         if (Node->expr()) {
             std::string result = std::any_cast<std::string>(visit(Node->expr()));
 
@@ -232,11 +231,7 @@ antlrcpp::Any CodeGenVisitor::visitWhileStatement(ifccParser::WhileStatementCont
 
 antlrcpp::Any CodeGenVisitor::visitBlock(ifccParser::BlockContext *ctx) {
     std::string blockName = currentCFG->getName() + "_" + std::to_string(currBlockIndex++);
-
-	std::cerr << "DEBUG CodeGen: looking for block '" << blockName << "'" << std::endl;
-
     SymbolTable* blockTable = (*functionSymbolTables)[blockName];
-	std::cerr << "DEBUG CodeGen: blockTable = " << blockTable << std::endl;
 
     SymbolTable* oldTable = currentCFG->getSymbolTable();
 

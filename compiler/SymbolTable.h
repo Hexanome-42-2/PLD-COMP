@@ -29,7 +29,6 @@ class SymbolTable {
         SymbolTable(SymbolTable* parent = nullptr, std::string name = "global") 
             : parent(parent), stName(name) {
             if (parent != nullptr) {
-                std::cerr << "DEBUG ctor: parent->varOffset = " << parent->varOffset << std::endl;
                 varOffset = parent->varOffset;
                 tmpOffset = varOffset;
                 maxOffset = varOffset;

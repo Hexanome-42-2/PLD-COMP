@@ -23,7 +23,7 @@ std::string CFG::IR_reg_to_asm(std::string reg) {
         if (isRegister(reg)) {
             return "%" + trimRegName(reg);
         } else if (!reg.empty() && (reg[0] == '-' || isdigit(reg[0]))) {
-            return reg + "(%rbp)";  // déjà un offset numérique
+            return reg + "(%rbp)";  // already a numerical offset
         } else {
             std::string ret =  std::to_string(symbolTable->getVariableOffset(reg)) + "(%rbp)";
             return ret;
@@ -37,7 +37,7 @@ std::string CFG::IR_reg_to_asm(std::string reg) {
             if (off >= 4) off -= 4;    // map -4,-8,-12,... to [sp,#0],[sp,#4],[sp,#8],...
 
             std::string ret = "[sp, #" + std::to_string(off) + "]";
-            return ret;  // déjà un offset numérique
+            return ret;  // already a numerical offset
         } else {
             int off = -symbolTable->getVariableOffset(reg);
             if (off >= 4) off -= 4;

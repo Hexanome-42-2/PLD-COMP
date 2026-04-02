@@ -136,5 +136,4 @@ void SymbolTable::updateStackSize() {
         // Update the parent's stack size if this scope requires more space
         parent->stackSize = std::max(parent->stackSize, stackSize);
     }
-    std::cerr << "DEBUG updateStackSize: " << stName << " stackSize = " << stackSize << std::endl;
 }
