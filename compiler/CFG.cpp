@@ -22,6 +22,8 @@ std::string CFG::IR_reg_to_asm(std::string reg) {
     #if (defined(__x86_64__) || defined(_M_X64) || defined(DEV_ARCH_X86_64)) && not defined(DEV_ARCH_ARM64)
         if (isRegister(reg)) {
             return "%" + trimRegName(reg);
+        } else if (!reg.empty() && (reg[0] == '-' || isdigit(reg[0]))) {
+            return reg + "(%rbp)";  // already a numerical offset
         } else {
             std::string ret =  std::to_string(symbolTable->getVariableOffset(reg)) + "(%rbp)";
             return ret;
@@ -29,8 +31,17 @@ std::string CFG::IR_reg_to_asm(std::string reg) {
     #elif (defined(__aarch64__) || defined(_M_ARM64) || defined(DEV_ARCH_ARM64)) && not defined(DEV_ARCH_X86_64)
         if (isRegister(reg)) {
             return trimRegName(reg);
+        } else if (!reg.empty() && (reg[0] == '-' || isdigit(reg[0]))) {
+            int off = std::stoi(reg);
+            if (off < 0) off = -off;   // remove the -
+            if (off >= 4) off -= 4;    // map -4,-8,-12,... to [sp,#0],[sp,#4],[sp,#8],...
+
+            std::string ret = "[sp, #" + std::to_string(off) + "]";
+            return ret;  // already a numerical offset
         } else {
-            std::string ret = "[sp, #" + std::to_string(-symbolTable->getVariableOffset(reg)) + "]";
+            int off = -symbolTable->getVariableOffset(reg);
+            if (off >= 4) off -= 4;
+            std::string ret = "[sp, #" + std::to_string(off) + "]";
             return ret;
         }
     #else
@@ -58,11 +69,18 @@ void CFG::gen_asm_prologue(std::ostream& output) {
     #if (defined(__x86_64__) || defined(_M_X64) || defined(DEV_ARCH_X86_64)) && not defined(DEV_ARCH_ARM64)
         output << "    pushq %rbp\n";
         output << "    movq %rsp, %rbp\n";
-        output << "    subq $" << kStackFrameSize << ", %rsp\n";
+        output << "    subq $" << rootSymbolTable->getStackSize() << ", %rsp\n";
     #elif (defined(__aarch64__) || defined(_M_ARM64) || defined(DEV_ARCH_ARM64)) && not defined(DEV_ARCH_X86_64)
         output << "    push {fp, lr}\n";
         output << "    add	fp, sp, #0\n";
-        output << "    sub	sp, sp, #"<< kStackFrameSize << "\n";
+
+        int stackSize = rootSymbolTable->getStackSize();
+        // Keep stack 8-byte aligned (ARM EABI requirement)
+        if (stackSize % 8 != 0) {
+            stackSize += 8 - (stackSize % 8);
+        }
+
+        output << "    sub sp, sp, #" << stackSize << "\n";
     #else
         #error Architecture not supported. Please define gen_asm_prologue for your target architecture.
     #endif
@@ -85,8 +103,8 @@ void CFG::gen_asm_epilogue(std::ostream& output) {
 }
 
 std::string CFG::create_new_tempvar(Type t) {
-    std::string tmpVar = symbolTable->addTemporaryVariable();
-    symbolTable->updateMaxOffset();
+    std::string tmpVar = rootSymbolTable->addTemporaryVariable();
+    rootSymbolTable->updateMaxOffset();
     return tmpVar;
 }
 

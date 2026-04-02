@@ -16,12 +16,26 @@ class  CodeGenVisitor : public ifccBaseVisitor {
 		CFG *currentCFG = nullptr; // Current CFG being accessed
 		CFGContainer *cfgContainer;
 		std::unordered_map<std::string, SymbolTable*> *functionSymbolTables;
+		std::vector<std::unordered_map<std::string, int>> declaredVars;
+		int currBlockIndex = 0;
 
 		CodeGenVisitor(
 			CFGContainer *cfgContainer,
 			std::unordered_map<std::string, SymbolTable*> *functionSymbolTables
 		) : cfgContainer(cfgContainer),
 			functionSymbolTables(functionSymbolTables) {};
+
+
+		int resolveVarOffset(const std::string& name) {
+			for (int i = (int)declaredVars.size() - 1; i >= 0; i--) {
+				auto it = declaredVars[i].find(name);
+				if (it != declaredVars[i].end()){
+					return it->second;}
+			}
+
+			 int offset = currentCFG->getRootSymbolTable()->getVariableOffset(name);
+   			 return offset;
+		}
 
 		virtual antlrcpp::Any visitProg(ifccParser::ProgContext *ctx) override;
 		virtual antlrcpp::Any visitFunction(ifccParser::FunctionContext *ctx) override;
@@ -31,6 +45,7 @@ class  CodeGenVisitor : public ifccBaseVisitor {
 		virtual antlrcpp::Any visitReturnStatement(ifccParser::ReturnStatementContext *ctx) override;
 		virtual antlrcpp::Any visitIfStatement(ifccParser::IfStatementContext *ctx) override;
 		virtual antlrcpp::Any visitWhileStatement(ifccParser::WhileStatementContext *ctx) override;
+		virtual antlrcpp::Any visitBlock(ifccParser::BlockContext *ctx) override;
 
 		// Expressions
 		virtual antlrcpp::Any visitUnaryExpr(ifccParser::UnaryExprContext *ctx) override;

@@ -1,6 +1,24 @@
 #include "SymbolTable.h"
 
-SymbolTable::SymbolTable() {
+Type stringToType(const std::string& typeStr) {
+    if (typeStr == "int") {
+        return Type::INT;
+    } else if (typeStr == "void") {
+        return Type::VOID;
+    } else {
+        return Type::ERROR; // Invalid type
+    }
+}
+
+int typeSizeOf(Type type) {
+    switch (type) {
+        case Type::INT:
+            return 4;
+        case Type::VOID:
+            return 0; // Void has no size
+        default:
+            return 0;
+    }
 }
 
 SymbolTable::~SymbolTable() {
@@ -24,13 +42,27 @@ VarInfo *SymbolTable::getVariable(const std::string &name) {
     if (it != symbolTable.end()) {
         return &(it->second); // Return a pointer to the VarInfo
     }
+    if (parent != nullptr) {
+        return parent->getVariable(name); // Variable not found, check parent
+    }
     return nullptr; // Variable not found
+}
+
+VarInfo* SymbolTable::getLocalVariable(const std::string& name) {
+    auto it = symbolTable.find(name);
+    if (it != symbolTable.end()) {
+        return &(it->second);
+    }
+    return nullptr; 
 }
 
 int SymbolTable::getVariableOffset(const std::string &name) {
     auto it = symbolTable.find(name);
     if (it != symbolTable.end()) {
         return it->second.index;
+    }
+    if (parent != nullptr) {
+        return parent->getVariableOffset(name); // Variable not found, check parent
     }
     return 1; // Variable not found
 }
@@ -39,6 +71,9 @@ Type SymbolTable::getVariableType(const std::string &name) {
     auto it = symbolTable.find(name);
     if (it != symbolTable.end()) {
         return it->second.type;
+    }
+    if (parent != nullptr) {
+        return parent->getVariableType(name); // Variable not found, check parent
     }
     return Type::ERROR; // Variable not found
 }
@@ -51,6 +86,9 @@ bool SymbolTable::getUsed(const std::string &name) {
     auto it = symbolTable.find(name);
     if (it != symbolTable.end()) {
         return it->second.used;
+    }
+    if (parent != nullptr) {
+        return parent->getUsed(name); // Variable not found, check parent
     }
     return false; // Variable not found
 }
@@ -81,8 +119,21 @@ std::vector<std::string> SymbolTable::getUnusedVariables() {
 }
 
 void SymbolTable::printSymbolTable() const {
-    std::cout << "Symbol Table:\n";
+    if (parent != nullptr) {
+        parent->printSymbolTable();
+        std::cout << "New scope:\n";
+    } else {
+        std::cout << "Symbol Table:\n";
+    }
     for (const auto& pair : symbolTable) {
         std::cout << "Variable: " << pair.first << ", Offset: " << pair.second.index << ", Used: " << pair.second.used << "\n";
+    }
+}
+
+void SymbolTable::updateStackSize() {
+    stackSize -= maxOffset;
+    if (parent != nullptr) {
+        // Update the parent's stack size if this scope requires more space
+        parent->stackSize = std::max(parent->stackSize, stackSize);
     }
 }

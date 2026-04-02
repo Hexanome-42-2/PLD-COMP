@@ -7,7 +7,7 @@ prog 		: fonction+ ;
 fonction  	: functype=TYPE funcName=NAME '(' parameters? ')' block		# Function
 			;
 
-block		: '{' statement* '}'				# BlockStatement
+block		: '{' statement* '}'
 			;
 
 // 1. Defines function parameters (each param has explicit type: int a, int b)
@@ -19,7 +19,8 @@ argument	: expr (',' expr)*					# ArgumentList
 			;
 
 // 3. Defines what a statement is
-statement	: TYPE assignStatement (',' assignStatement)* ';'	# DeclareStatement
+statement	: block                                             # BlockStatement
+            | TYPE assignStatement (',' assignStatement)* ';'	# DeclareStatement
 			| NAME '(' argument? ')' ';'		                # FunctionCallStatement
 			| RETURN expr? ';'                                  # ReturnStatement
 			| 'if' '(' expr ')' ( ifst=statement | ifbl=block )
