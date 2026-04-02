@@ -78,9 +78,14 @@ antlrcpp::Any CodeGenVisitor::visitDeclareStatement(ifccParser::DeclareStatement
 
         // Generate the initialization code if present
         if (Node->expr()) {
-            std::string result = std::any_cast<std::string>(visit(Node->expr()));
+            ExprResult result = std::any_cast<ExprResult>(visit(Node->expr()));
 
-            currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {kScratchRegs[0], result});
+            if (result.isConst) {
+                result.expr = currentCFG->create_new_tempvar(Type::INT);
+                currentCFG->current_bb->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {result.expr, std::to_string(result.value)});
+            }
+
+            currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {kScratchRegs[0], result.expr});
             currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {std::to_string(offset), kScratchRegs[0]});
         }
     }
@@ -91,24 +96,20 @@ antlrcpp::Any CodeGenVisitor::visitFunctionCallStatement(ifccParser::FunctionCal
 	if (ctx->argument()) {
 		ifccParser::ArgumentListContext* args = dynamic_cast<ifccParser::ArgumentListContext*>(ctx->argument());
 		if (args) {
-			std::vector<std::string> argOffsets;
+			std::vector<std::string> argExprs;
 			for (ifccParser::ExprContext* argExpr : args->expr()) {
 				ExprResult tmpVar = std::any_cast<ExprResult>(visit(argExpr));
-			    int offset = currentCFG->getRootSymbolTable()->getVariableOffset(tmpVar.expr);
 
 			    if (tmpVar.isConst) {
 			        tmpVar.expr = currentCFG->create_new_tempvar(Type::INT);
 			        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {tmpVar.expr, std::to_string(tmpVar.value)});
 			    }
 
-			    currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {kScratchRegs[0], tmpVar.expr});
-			    currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {std::to_string(offset), kScratchRegs[0]});
-
-			    argOffsets.push_back(std::to_string(offset));
+			    argExprs.push_back(tmpVar.expr);
 			}
 
-			for (size_t i = 0; i < argOffsets.size() && i < kArgRegs.size(); ++i) {
-				currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {kArgRegs[i], argOffsets[i]});
+			for (size_t i = 0; i < argExprs.size() && i < kArgRegs.size(); ++i) {
+				currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {kArgRegs[i], argExprs[i]});
 			}
 		}
 	}
@@ -330,24 +331,20 @@ antlrcpp::Any CodeGenVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx) {
 	if (ctx->argument()) {
 		ifccParser::ArgumentListContext* args = dynamic_cast<ifccParser::ArgumentListContext*>(ctx->argument());
 		if (args) {
-			std::vector<std::string> argOffsets;
+			std::vector<std::string> argExprs;
 			for (ifccParser::ExprContext* argExpr : args->expr()) {
 				ExprResult tmpVar = std::any_cast<ExprResult>(visit(argExpr));
-			    int offset = currentCFG->getRootSymbolTable()->getVariableOffset(tmpVar.expr);
 
 			    if (tmpVar.isConst) {
 			        tmpVar.expr = currentCFG->create_new_tempvar(Type::INT);
 			        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {tmpVar.expr, std::to_string(tmpVar.value)});
 			    }
 
-			    currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {kScratchRegs[0], tmpVar.expr});
-			    currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {std::to_string(offset), kScratchRegs[0]});
-
-                argOffsets.push_back(std::to_string(offset));
+                argExprs.push_back(tmpVar.expr);
 			}
 
-			for (size_t i = 0; i < argOffsets.size() && i < kArgRegs.size(); ++i) {
-				currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {kArgRegs[i], argOffsets[i]});
+			for (size_t i = 0; i < argExprs.size() && i < kArgRegs.size(); ++i) {
+				currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {kArgRegs[i], argExprs[i]});
 			}
 		}
 	}
