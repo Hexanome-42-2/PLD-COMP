@@ -40,10 +40,12 @@ class SymbolTable {
         int getStackSize() const { return stackSize; }
         void addVariable(const std::string& name);
         const std::string addTemporaryVariable();
+        std::string nameTemporaryVariable(int offset);
         VarInfo* getVariable(const std::string& name);
         VarInfo* getLocalVariable(const std::string& name);
         int getVariableOffset(const std::string& name);
         Type getVariableType(const std::string& name);
+        void clearTemporaryVariables();
         int getMaxOffset() const;
         bool getUsed(const std::string& name);
         void MarkUsed(const std::string& name);

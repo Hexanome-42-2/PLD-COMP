@@ -108,6 +108,10 @@ std::string CFG::create_new_tempvar(Type t) {
     return tmpVar;
 }
 
+void CFG::clear_temporary_variables() {
+    symbolTable->clearTemporaryVariables();
+}
+
 int CFG::get_var_index(std::string name) {
     return symbolTable->getVariableOffset(name);
 }

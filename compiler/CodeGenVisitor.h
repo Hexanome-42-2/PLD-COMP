@@ -7,9 +7,15 @@
 #include "SymbolTable.h"
 #include "IR.h"
 #include "CFG.h"
-#include <map>
 #include <string>
 #include <unordered_map>
+
+
+struct ExprResult {
+    bool isConst;
+    int value;
+    std::string expr;
+};
 
 class  CodeGenVisitor : public ifccBaseVisitor {
 	public:
