@@ -54,8 +54,9 @@ int main(int argn, const char **argv) {
 
 	SymbolTable symbolTable;
 	std::unordered_map<std::string, SymbolTable *> functionSymbolTables; // Map to hold symbol tables for each function
+	std::unordered_map<std::string, FunctionSignature> functionSignatures; // Map to hold function signatures for call verification
 
-	StaticAnalysisVisitor staticAnalysis(&symbolTable, &functionSymbolTables);
+	StaticAnalysisVisitor staticAnalysis(&symbolTable, &functionSymbolTables, &functionSignatures);
 	staticAnalysis.visit(tree);
 
 	if (staticAnalysis.hasError) {
@@ -65,7 +66,7 @@ int main(int argn, const char **argv) {
 
 	CFGContainer cfgContainer(&functionSymbolTables);
 
-	CodeGenVisitor codeGen(&cfgContainer, &functionSymbolTables);
+	CodeGenVisitor codeGen(&cfgContainer, &functionSymbolTables, &functionSignatures);
 	codeGen.visit(tree);
 
 	cfgContainer.gen_asm(cout);

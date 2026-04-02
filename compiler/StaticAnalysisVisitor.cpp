@@ -1,32 +1,91 @@
 #include "StaticAnalysisVisitor.h"
+#include "generated/ifccLexer.h"
+
+std::any StaticAnalysisVisitor::visitIncludeStatement(ifccParser::IncludeStatementContext *ctx) {
+	std::string filePath = ctx->file->getText();
+	// Remove surrounding quotes or angle brackets
+	if ((filePath.front() == '"' && filePath.back() == '"') || (filePath.front() == '<' && filePath.back() == '>')) {
+		filePath = filePath.substr(1, filePath.size() - 2);
+	} else {
+		std::cerr << "Error: Invalid include file format for '" << ctx->file->getText() << "'. Expected format: \"file.h\" or <file.h>." << std::endl;
+		hasError = true;
+		return 0;
+	}
+
+	// Append standard include paths to search for the file
+	// Check if the file exists (for now only in standard include paths or current directory)
+	// --> Later implementations should handle include paths as well
+	std::string standardIncludes[] = {"/usr/include/", "/usr/local/include/", "./", "/usr/include/x86_64-linux-gnu/"}; // Add more paths as needed
+
+	bool found = false;
+	for (const std::string& includePath : standardIncludes) {
+		std::ifstream file(includePath + filePath);
+		if (file.good()) {
+			filePath = includePath + filePath; // Update filePath to the full path
+			found = true;
+			break;
+		}
+	}
+	if (!found) {
+		std::cerr << "Error: Included file '" << filePath << "' cannot be found in standard include paths." << std::endl;
+		hasError = true;
+		return 0;
+	} else {
+		// If we were to implement the actual inclusion of the file, we would read its contents and parse it here.
+		// For now we'll manually add some common functions to the function signatures to allow testing of includes without implementing full file parsing.
+		if (filePath.find("stdio") != std::string::npos) { // Add the functions [putchar, getchar]
+			(*functionSignatures)["putchar"] = {Type::INT, 1, true, false};
+			(*functionSignatures)["getchar"] = {Type::INT, 0, true, false};
+		}
+	}
+	return 0;
+}
 
 std::any StaticAnalysisVisitor::visitProg(ifccParser::ProgContext *ctx) {
 	currSymbolTable = programSymbolTable;
 
 	// === Pass 1: Register all function signatures before analyzing bodies ===
 	for (ifccParser::FonctionContext* funcCtx : ctx->fonction()) {
-		ifccParser::FunctionContext* f = dynamic_cast<ifccParser::FunctionContext*>(funcCtx);
-		if (f) {
-			std::string name = f->funcName->getText();
-			std::string retType = f->functype->getText();
-            Type retTypeEnum = stringToType(retType);
-			// In C, f() means unspecified parameter list (not strictly zero parameters).
-			// We encode unknown arity as -1 and skip strict arg-count checks for those functions.
-			int paramCount = -1;
-			if (f->parameters()) {
-				ifccParser::ParamListContext* params = dynamic_cast<ifccParser::ParamListContext*>(f->parameters());
-				if (params) {
-					paramCount = params->NAME().size();
-				}
-			}
+		std::string name;
+		std::string retType;
+		int paramCount = -1;
+		bool isDef = false;
 
-			if (functionSignatures.count(name)) {
-				std::cerr << "Error: Function '" << name << "' already defined." << std::endl;
-				hasError = true;
-			} else {
-				functionSignatures[name] = {retTypeEnum, paramCount};
+		ifccParser::FunctionDeclarationContext* decl = dynamic_cast<ifccParser::FunctionDeclarationContext*>(funcCtx);
+		ifccParser::FunctionDefinitionContext* def = dynamic_cast<ifccParser::FunctionDefinitionContext*>(funcCtx);
+
+	    Type retTypeEnum;
+		if (decl) {
+			name = decl->funcName->getText();
+			retType = decl->functype->getText();
+		    retTypeEnum = stringToType(retType);
+
+			if (decl->parameters()) {
+				ifccParser::ParamListContext* params = dynamic_cast<ifccParser::ParamListContext*>(decl->parameters());
+				if (params) paramCount = params->NAME().size();
 			}
+		} else if (def) {
+			name = def->funcName->getText();
+			retType = def->functype->getText();
+		    retTypeEnum = stringToType(retType);
+			isDef = true;
+
+			if (def->parameters()) {
+				ifccParser::ParamListContext* params = dynamic_cast<ifccParser::ParamListContext*>(def->parameters());
+				if (params) paramCount = params->NAME().size();
+			}
+		} else {
+			continue;
 		}
+
+	    if (functionSignatures->count(name)) {
+	        // Already declared — just mark as defined if this is a definition
+	        if (isDef) {
+	            (*functionSignatures)[name].isDefined = true;
+	        }
+	    } else {
+	        (*functionSignatures)[name] = {retTypeEnum, paramCount, isVisitingInclude, isDef};
+	    }
 	}
 
 	// === Pass 2: Visit all children for semantic analysis ===
@@ -52,7 +111,7 @@ std::any StaticAnalysisVisitor::visitProg(ifccParser::ProgContext *ctx) {
 	return 0;
 }
 
-std::any StaticAnalysisVisitor::visitFunction(ifccParser::FunctionContext *ctx) {
+std::any StaticAnalysisVisitor::visitFunctionDeclaration(ifccParser::FunctionDeclarationContext *ctx) {
 	std::string functionName = ctx->funcName->getText();
 
 	if (allSymbolTables->find(functionName) != allSymbolTables->end()) {
@@ -63,6 +122,44 @@ std::any StaticAnalysisVisitor::visitFunction(ifccParser::FunctionContext *ctx) 
 
 	SymbolTable* functionTable = new SymbolTable();
 	(*allSymbolTables)[functionName] = functionTable;
+
+	if (ctx->parameters()) {
+		ifccParser::ParamListContext* params = dynamic_cast<ifccParser::ParamListContext*>(ctx->parameters());
+		if (params) {
+			for (antlr4::tree::TerminalNode* varNode : params->NAME()) {
+				std::string paramName = varNode->getText();
+				if (functionTable->getVariable(paramName) == nullptr) {
+					functionTable->addVariable(paramName);
+					functionTable->MarkUsed(paramName); // params are considered "used"
+				}
+			}
+		}
+	}
+
+	return 0;
+}
+
+std::any StaticAnalysisVisitor::visitFunctionDefinition(ifccParser::FunctionDefinitionContext *ctx) {
+	std::string functionName = ctx->funcName->getText();
+	SymbolTable* functionTable = nullptr;
+
+	if (allSymbolTables->find(functionName) != allSymbolTables->end()) {
+	    FunctionSignature& sig = (*functionSignatures)[functionName];
+	    if (sig.isDefined) {
+	        std::cerr << "Error: Function '" << functionName << "' has already been defined." << std::endl;
+	        hasError = true;
+	        return 0;
+	    } else {
+	        functionTable = (*allSymbolTables)[functionName];
+	    }
+	}
+
+    (*functionSignatures)[functionName].isDefined = true;
+
+    if (!functionTable) {
+	    functionTable = new SymbolTable();
+	    (*allSymbolTables)[functionName] = functionTable;
+    }
 	SymbolTable* oldSymbolTable = currSymbolTable;
 
 	currSymbolTable = functionTable;
@@ -153,9 +250,13 @@ std::any StaticAnalysisVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx) 
 	std::string funcName = ctx->NAME()->getText();
 
 	// Check: function exists
-	auto it = functionSignatures.find(funcName);
-	if (it == functionSignatures.end()) {
-		std::cerr << "Error: Function '" << funcName << "' is not defined." << std::endl;
+	auto it = functionSignatures->find(funcName);
+	if (it == functionSignatures->end()) {
+		std::cerr << "Error: Function '" << funcName << "' is not declared." << std::endl;
+		hasError = true;
+		return 0;
+	} else if (it->second.isDefined == false && it->second.isExternal == false) {
+		std::cerr << "Error: Function '" << funcName << "' is declared but not defined." << std::endl;
 		hasError = true;
 		return 0;
 	}
@@ -196,9 +297,13 @@ std::any StaticAnalysisVisitor::visitFunctionCallStatement(ifccParser::FunctionC
 	std::string funcName = ctx->NAME()->getText();
 
 	// Check: function exists
-	auto it = functionSignatures.find(funcName);
-	if (it == functionSignatures.end()) {
-		std::cerr << "Error: Function '" << funcName << "' is not defined." << std::endl;
+	auto it = functionSignatures->find(funcName);
+	if (it == functionSignatures->end()) {
+		std::cerr << "Error: Function '" << funcName << "' is not declared." << std::endl;
+		hasError = true;
+		return 0;
+	} else if (it->second.isDefined == false && it->second.isExternal == false) {
+		std::cerr << "Error: Function '" << funcName << "' is declared but not defined." << std::endl;
 		hasError = true;
 		return 0;
 	}
