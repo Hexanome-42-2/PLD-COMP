@@ -146,6 +146,27 @@ antlrcpp::Any CodeGenVisitor::visitAssignStatement(ifccParser::AssignStatementCo
 	return ExprResult{false, -1, result.expr};
 }
 
+antlrcpp::Any CodeGenVisitor::visitAssignExpr(ifccParser::AssignExprContext *ctx) {
+    // Visit the expression, evaluating the right side and putting the result in %eax
+    ExprResult result;
+    if (ctx->expr()) {
+        result = std::any_cast<ExprResult>(visit(ctx->expr()));
+
+        if (result.isConst) {
+            result.expr = currentCFG->create_new_tempvar(Type::INT);
+            currentCFG->current_bb->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {result.expr, std::to_string(result.value)});
+        }
+
+        std::string varName = ctx->NAME()->getText();
+
+        int offset = resolveVarOffset(varName);
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::rmem, Type::INT, {kScratchRegs[0], result.expr});
+        currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT, {std::to_string(offset), kScratchRegs[0]});
+    }
+
+    return ExprResult{false, -1, result.expr};
+}
+
 antlrcpp::Any CodeGenVisitor::visitReturnStatement(ifccParser::ReturnStatementContext *ctx) {
 	// Evaluate the result of the expression (if present — void functions have no return expr)
 	if (ctx->expr()) {

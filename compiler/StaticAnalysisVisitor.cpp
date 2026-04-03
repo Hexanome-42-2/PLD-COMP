@@ -234,6 +234,22 @@ std::any StaticAnalysisVisitor::visitAssignStatement(ifccParser::AssignStatement
 	return 0;
 }
 
+std::any StaticAnalysisVisitor::visitAssignExpr(ifccParser::AssignExprContext *ctx) {
+    if (ctx->expr()) {
+        std::string varName = ctx->NAME()->getText();
+
+        if (currSymbolTable->getVariable(varName) == nullptr) {
+            std::cerr << "Error: Variable '" << varName << "' assigned before declaration." << std::endl;
+            hasError = true;
+        }
+
+        // Visit the right side of the equals sign
+        visit(ctx->expr());
+    }
+
+    return 0;
+}
+
 std::any StaticAnalysisVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
 	std::string varName = ctx->NAME()->getText();
 
