@@ -41,6 +41,7 @@ class StaticAnalysisVisitor : public ifccBaseVisitor {
         virtual std::any visitBlock(ifccParser::BlockContext *ctx) override;
         virtual std::any visitDeclareStatement(ifccParser::DeclareStatementContext *ctx) override;
 		virtual std::any visitAssignStatement(ifccParser::AssignStatementContext *ctx) override;
+        virtual std::any visitAssignExpr(ifccParser::AssignExprContext *ctx) override;
 		virtual std::any visitVarExpr(ifccParser::VarExprContext *ctx) override;
 		virtual std::any visitFuncCall(ifccParser::FuncCallContext *ctx) override;
 		virtual std::any visitFunctionCallStatement(ifccParser::FunctionCallStatementContext *ctx) override;

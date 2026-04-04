@@ -94,7 +94,8 @@ void IRInstr::gen_asm_x86(std::ostream &output) {
             break;
 
         case IRInstr::Operation::plus:
-            output << "    movl " << bb->cfg->IR_reg_to_asm(params[0]) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(params[0]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << "\n";
+            output << "    movl " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
             break;
 
 		case IRInstr::Operation::notl:

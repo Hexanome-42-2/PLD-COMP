@@ -27,10 +27,10 @@ statement	: block                                             # BlockStatement
             | TYPE assignStatement (',' assignStatement)* ';'	# DeclareStatement
 			| NAME '(' argument? ')' ';'		                # FunctionCallStatement
 			| RETURN expr? ';'                                  # ReturnStatement
-			| 'if' '(' expr ')' ( ifst=statement | ifbl=block )
+			| 'if' '(' expr ')' (( ifst=statement | ifbl=block ) | ';')
 			  ('else' ( elst=statement | elbl=block ))?         # IfStatement
 			| 'while' '(' expr ')'
-			  ( whst=statement | whbl=block )                   # WhileStatement
+			  (( whst=statement | whbl=block ) | ';')           # WhileStatement
 			| expr ';'								            # ExprStatement
 			;
 
@@ -43,7 +43,7 @@ expr		: lExpr=expr MULTOP rExpr=expr		    # MultDiv
 			| lExpr=expr BITOP rExpr=expr		    # BitWise
             | lExpr=expr COMPOP rExpr=expr          # Comp
             | lExpr=expr EQOP rExpr=expr            # EQ
-            | assignStatement                       # AssignExpr
+            | NAME '=' expr                         # AssignExpr
             ;
 
 expr_unary	: CONST							    # ConstExpr

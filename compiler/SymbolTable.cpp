@@ -28,6 +28,11 @@ SymbolTable::~SymbolTable() {
 void SymbolTable::addVariable(const std::string &name) {
     varOffset -= 4; // Decrement offset for the next variable
     symbolTable[name] = {varOffset, Type::INT, false}; // Store the current offset and mark as unused
+
+    // Ensure frame size accounts for regular variables (including params).
+    if (varOffset < maxOffset) {
+        maxOffset = varOffset;
+    }
 }
 
 const std::string SymbolTable::addTemporaryVariable() {
@@ -113,7 +118,8 @@ void SymbolTable::InitializeTmpOffset() {
 }
 
 void SymbolTable::updateMaxOffset() {
-    maxOffset = tmpOffset < maxOffset ? tmpOffset : maxOffset;
+    if (varOffset < maxOffset) maxOffset = varOffset;
+    if (tmpOffset < maxOffset) maxOffset = tmpOffset;
 }
 
 std::vector<std::string> SymbolTable::getUnusedVariables() {

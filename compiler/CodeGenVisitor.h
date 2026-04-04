@@ -52,6 +52,7 @@ class  CodeGenVisitor : public ifccBaseVisitor {
 		virtual antlrcpp::Any visitFunctionDefinition(ifccParser::FunctionDefinitionContext *ctx) override;
 		virtual antlrcpp::Any visitDeclareStatement(ifccParser::DeclareStatementContext *ctx) override;
 		virtual antlrcpp::Any visitAssignStatement(ifccParser::AssignStatementContext *ctx) override;
+        virtual antlrcpp::Any visitAssignExpr(ifccParser::AssignExprContext *ctx) override;
 		virtual antlrcpp::Any visitFunctionCallStatement(ifccParser::FunctionCallStatementContext *ctx) override;
 		virtual antlrcpp::Any visitReturnStatement(ifccParser::ReturnStatementContext *ctx) override;
 		virtual antlrcpp::Any visitIfStatement(ifccParser::IfStatementContext *ctx) override;

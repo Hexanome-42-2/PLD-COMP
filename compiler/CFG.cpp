@@ -109,7 +109,7 @@ std::string CFG::create_new_tempvar(Type t) {
 }
 
 void CFG::clear_temporary_variables() {
-    symbolTable->clearTemporaryVariables();
+    rootSymbolTable->clearTemporaryVariables();
 }
 
 int CFG::get_var_index(std::string name) {

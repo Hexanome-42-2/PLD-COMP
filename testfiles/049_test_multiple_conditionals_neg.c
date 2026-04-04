@@ -1,3 +1,3 @@
 int main() {
-    return 1 < 2 != 4 > 5;
+    return -1 < 2 != -4 > 5;
 }
