@@ -87,8 +87,8 @@ def build_ifcc_for_default_arch(pld_base_dir: str) -> str:
 def toolchain_run_for_arch(arch: str, ifcc_path: str):
     """
     Retourne des fonctions (compile_ref, link_ref, run_ref, link_ifcc, run_ifcc) selon l'arch.
-    \- x86\\_64: gcc + exécution native
-    \- ARM: arm-linux-gnueabi-gcc + qemu-arm
+    - x86\\_64: gcc + exécution native
+    - ARM: arm-linux-gnueabi-gcc + qemu-arm
     """
     if is_arm_arch(arch):
         cc = "arm-linux-gnueabi-gcc -mcpu=cortex-a15"
@@ -167,7 +167,7 @@ if "ifcc-test-output" in orig_cwd:
     print('error: cannot run ifcc-test.py from within its own output directory')
     exit(1)
 
-pld_base_dir=os.path.normpath(os.path.dirname(__file__))
+pld_base_dir=os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
 if args.debug:
     print("ifcc-test.py: "+os.path.dirname(__file__))
 
@@ -415,3 +415,6 @@ for arch_name, ifcc_path in ifcc_bins:
 
 if not (overall_ok or args.verbose):
     print("Some test-cases failed. Run ifcc-test.py with option '--verbose' for more detailed feedback.")
+
+if not overall_ok:
+    exit(1)

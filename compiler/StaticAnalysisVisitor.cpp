@@ -78,18 +78,26 @@ std::any StaticAnalysisVisitor::visitProg(ifccParser::ProgContext *ctx) {
 			continue;
 		}
 
-	    if (functionSignatures->count(name)) {
-	        // Already declared — just mark as defined if this is a definition
-	        if (isDef) {
-	            (*functionSignatures)[name].isDefined = true;
-	        }
-	    } else {
-	        (*functionSignatures)[name] = {retTypeEnum, paramCount, isVisitingInclude, isDef};
+		if (isDef) {
+			functionsWithBody.insert(name);
+		}
+
+	    if (!functionSignatures->count(name)) {
+	        // Pass 1 only registers signatures; function bodies are marked as defined
+	        // when visitFunctionDefinition actually visits them in pass 2.
+	        (*functionSignatures)[name] = {retTypeEnum, paramCount, isVisitingInclude, false};
 	    }
 	}
 
 	// === Pass 2: Visit all children for semantic analysis ===
 	visitChildren(ctx);
+
+	// A complete program must define main; otherwise linking fails and IFCC
+	// would incorrectly accept a program GCC rejects.
+	if (functionsWithBody.find("main") == functionsWithBody.end()) {
+		std::cerr << "Error: Program must define a 'main' function." << std::endl;
+		hasError = true;
+	}
 
 	std::vector<std::string> unusedVars = programSymbolTable->getUnusedVariables();
 	for (const std::string& varName : unusedVars) {
@@ -126,8 +134,15 @@ std::any StaticAnalysisVisitor::visitFunctionDeclaration(ifccParser::FunctionDec
 	if (ctx->parameters()) {
 		ifccParser::ParamListContext* params = dynamic_cast<ifccParser::ParamListContext*>(ctx->parameters());
 		if (params) {
+			std::unordered_set<std::string> seenParams;
 			for (antlr4::tree::TerminalNode* varNode : params->NAME()) {
 				std::string paramName = varNode->getText();
+				if (!seenParams.insert(paramName).second) {
+					std::cerr << "Error: Duplicate parameter name '" << paramName
+					          << "' in function '" << functionName << "'." << std::endl;
+					hasError = true;
+					continue;
+				}
 				if (functionTable->getVariable(paramName) == nullptr) {
 					functionTable->addVariable(paramName);
 					functionTable->MarkUsed(paramName); // params are considered "used"
@@ -142,6 +157,7 @@ std::any StaticAnalysisVisitor::visitFunctionDeclaration(ifccParser::FunctionDec
 std::any StaticAnalysisVisitor::visitFunctionDefinition(ifccParser::FunctionDefinitionContext *ctx) {
 	std::string functionName = ctx->funcName->getText();
 	SymbolTable* functionTable = nullptr;
+	bool reusedExistingTable = false;
 
 	if (allSymbolTables->find(functionName) != allSymbolTables->end()) {
 	    FunctionSignature& sig = (*functionSignatures)[functionName];
@@ -151,6 +167,7 @@ std::any StaticAnalysisVisitor::visitFunctionDefinition(ifccParser::FunctionDefi
 	        return 0;
 	    } else {
 	        functionTable = (*allSymbolTables)[functionName];
+	        reusedExistingTable = true;
 	    }
 	}
 
@@ -169,8 +186,21 @@ std::any StaticAnalysisVisitor::visitFunctionDefinition(ifccParser::FunctionDefi
 	if (ctx->parameters()) {
 		ifccParser::ParamListContext* params = dynamic_cast<ifccParser::ParamListContext*>(ctx->parameters());
 		if (params) {
+			std::unordered_set<std::string> seenParams;
 			for (antlr4::tree::TerminalNode* varNode : params->NAME()) {
 				std::string paramName = varNode->getText();
+				if (!seenParams.insert(paramName).second) {
+					std::cerr << "Error: Duplicate parameter name '" << paramName
+					          << "' in function '" << functionName << "'." << std::endl;
+					hasError = true;
+					continue;
+				}
+
+				// If this definition follows a declaration, params were already inserted.
+				if (reusedExistingTable && functionTable->getLocalVariable(paramName) != nullptr) {
+					continue;
+				}
+
 				functionTable->addVariable(paramName);
 			}
 		}
@@ -271,7 +301,7 @@ std::any StaticAnalysisVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx) 
 		std::cerr << "Error: Function '" << funcName << "' is not declared." << std::endl;
 		hasError = true;
 		return 0;
-	} else if (it->second.isDefined == false && it->second.isExternal == false) {
+	} else if (!it->second.isExternal && functionsWithBody.find(funcName) == functionsWithBody.end()) {
 		std::cerr << "Error: Function '" << funcName << "' is declared but not defined." << std::endl;
 		hasError = true;
 		return 0;
@@ -318,7 +348,7 @@ std::any StaticAnalysisVisitor::visitFunctionCallStatement(ifccParser::FunctionC
 		std::cerr << "Error: Function '" << funcName << "' is not declared." << std::endl;
 		hasError = true;
 		return 0;
-	} else if (it->second.isDefined == false && it->second.isExternal == false) {
+	} else if (!it->second.isExternal && functionsWithBody.find(funcName) == functionsWithBody.end()) {
 		std::cerr << "Error: Function '" << funcName << "' is declared but not defined." << std::endl;
 		hasError = true;
 		return 0;

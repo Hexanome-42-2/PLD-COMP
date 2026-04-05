@@ -5,6 +5,7 @@
 #include "SymbolTable.h"
 #include <iostream>
 #include <unordered_map>
+#include <unordered_set>
 #include <string>
 
 // Function signature tracking for call verification
@@ -29,6 +30,7 @@ class StaticAnalysisVisitor : public ifccBaseVisitor {
 
 		// Our function signature map for call verification
 		std::unordered_map<std::string, FunctionSignature> *functionSignatures;
+		std::unordered_set<std::string> functionsWithBody;
 
 		StaticAnalysisVisitor(SymbolTable *table, std::unordered_map<std::string, SymbolTable*> *funcTables, std::unordered_map<std::string, FunctionSignature> *funcSigs)
 			: programSymbolTable(table), allSymbolTables(funcTables), functionSignatures(funcSigs) {};

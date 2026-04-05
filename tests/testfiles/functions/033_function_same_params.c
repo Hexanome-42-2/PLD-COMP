@@ -1,0 +1,8 @@
+// EXPECT: syntax error
+int foo(int a, int a) {
+    return a;
+}
+
+int main() {
+    return foo(1, 2);
+}
