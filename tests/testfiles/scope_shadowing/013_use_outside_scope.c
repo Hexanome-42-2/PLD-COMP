@@ -2,8 +2,8 @@
 int main() {
     int a = 0;
     {
-        int a = 3;
-
-        return a;
+        int b = 3;
     }
+
+    return b;
 }

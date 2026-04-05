@@ -31,7 +31,7 @@ statement	: block                                             # BlockStatement
 			  ('else' ( elst=statement | elbl=block ))?         # IfStatement
 			| 'while' '(' expr ')'
 			  (( whst=statement | whbl=block ) | ';')           # WhileStatement
-			| expr ';'								            # ExprStatement
+			| expr? ';'								            # ExprStatement
 			;
 
 assignStatement : NAME ('=' expr)? ;
