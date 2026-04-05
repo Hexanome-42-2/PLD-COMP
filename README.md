@@ -40,6 +40,9 @@ ANTLRLIB=/home/$(USER)/antlr4-install/lib/libantlr4-runtime.a
 
 ### Usage
 
+#### Demo Program Guide
+- See `docs/full_implementation_demo_guide.md` for a user-friendly explanation of the mini-game in `tests/full_implementation_demo.c` (how to play, outputs, and behavior).
+
 #### Compiling a C File
 ```bash
 cd compiler
