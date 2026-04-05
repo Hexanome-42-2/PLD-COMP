@@ -1,6 +1,7 @@
 #include "StaticAnalysisVisitor.h"
 #include "generated/ifccLexer.h"
 
+// Validates include directives and registers supported external library functions
 std::any StaticAnalysisVisitor::visitIncludeStatement(ifccParser::IncludeStatementContext *ctx) {
 	std::string filePath = ctx->file->getText();
 	// Remove surrounding quotes or angle brackets
@@ -41,6 +42,7 @@ std::any StaticAnalysisVisitor::visitIncludeStatement(ifccParser::IncludeStateme
 	return 0;
 }
 
+// Drives the two-pass semantic analysis: collect signatures first, then check bodies/usages
 std::any StaticAnalysisVisitor::visitProg(ifccParser::ProgContext *ctx) {
 	currSymbolTable = programSymbolTable;
 
@@ -79,6 +81,7 @@ std::any StaticAnalysisVisitor::visitProg(ifccParser::ProgContext *ctx) {
 		}
 
 		if (isDef) {
+		    // We fill this in pass 1 so forward calls are accepted in pass 2
 			functionsWithBody.insert(name);
 		}
 
@@ -119,6 +122,7 @@ std::any StaticAnalysisVisitor::visitProg(ifccParser::ProgContext *ctx) {
 	return 0;
 }
 
+// Registers a function prototype and creates its base symbol table for parameters
 std::any StaticAnalysisVisitor::visitFunctionDeclaration(ifccParser::FunctionDeclarationContext *ctx) {
 	std::string functionName = ctx->funcName->getText();
 
@@ -154,6 +158,7 @@ std::any StaticAnalysisVisitor::visitFunctionDeclaration(ifccParser::FunctionDec
 	return 0;
 }
 
+// Analyzes a function body with duplicate-definition checks and function-scope setup
 std::any StaticAnalysisVisitor::visitFunctionDefinition(ifccParser::FunctionDefinitionContext *ctx) {
 	std::string functionName = ctx->funcName->getText();
 	SymbolTable* functionTable = nullptr;
@@ -166,6 +171,7 @@ std::any StaticAnalysisVisitor::visitFunctionDefinition(ifccParser::FunctionDefi
 	        hasError = true;
 	        return 0;
 	    } else {
+	        // Declaration already created the table, so we just complete it here
 	        functionTable = (*allSymbolTables)[functionName];
 	        reusedExistingTable = true;
 	    }
@@ -213,6 +219,7 @@ std::any StaticAnalysisVisitor::visitFunctionDefinition(ifccParser::FunctionDefi
 	return 0;
 }
 
+// Opens a nested scope for a block, analyzes it, then restores parent scope
 std::any StaticAnalysisVisitor::visitBlock(ifccParser::BlockContext *ctx) {
     SymbolTable* blockTable = new SymbolTable(currSymbolTable);
     SymbolTable* oldSymbolTable = currSymbolTable;
@@ -223,7 +230,7 @@ std::any StaticAnalysisVisitor::visitBlock(ifccParser::BlockContext *ctx) {
 
     visitChildren(ctx);
 
-	// If the block's varOffset is less than the old symbol table's varOffset, update the old symbol table's varOffset
+	// Keep the deepest stack usage seen in nested scopes, otherwise frame size is too small
 	if (blockTable->getVarOffset() < oldSymbolTable->getVarOffset()) {
     oldSymbolTable->setVarOffset(blockTable->getVarOffset());
 	}
@@ -232,11 +239,13 @@ std::any StaticAnalysisVisitor::visitBlock(ifccParser::BlockContext *ctx) {
     return 0;
 }
 
+// Checks local declarations in current scope and validates initializer expressions
 std::any StaticAnalysisVisitor::visitDeclareStatement(ifccParser::DeclareStatementContext *ctx) {
 	for (auto Node : ctx->assignStatement()) {
 		std::string varName = Node->NAME()->getText();
 
 		if (currSymbolTable->getLocalVariable(varName) != nullptr) {
+            // Validates assignment statement targets and recursively checks right-hand expressions
 			std::cerr << "Error: Variable '" << varName << "' has already been declared." << std::endl;
 			hasError = true;
 		} else {
@@ -248,6 +257,7 @@ std::any StaticAnalysisVisitor::visitDeclareStatement(ifccParser::DeclareStateme
 }
 
 
+// Validates assignment statement targets and recursively checks right-hand expressions
 std::any StaticAnalysisVisitor::visitAssignStatement(ifccParser::AssignStatementContext *ctx) {
     if (ctx->expr()) {
         std::string varName = ctx->NAME()->getText();
@@ -264,6 +274,7 @@ std::any StaticAnalysisVisitor::visitAssignStatement(ifccParser::AssignStatement
 	return 0;
 }
 
+// Validates assignment expressions used inside bigger expressions
 std::any StaticAnalysisVisitor::visitAssignExpr(ifccParser::AssignExprContext *ctx) {
     if (ctx->expr()) {
         std::string varName = ctx->NAME()->getText();
@@ -280,6 +291,7 @@ std::any StaticAnalysisVisitor::visitAssignExpr(ifccParser::AssignExprContext *c
     return 0;
 }
 
+// Verifies variable usage is legal and marks variables as used for warnings
 std::any StaticAnalysisVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
 	std::string varName = ctx->NAME()->getText();
 
@@ -292,6 +304,7 @@ std::any StaticAnalysisVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
 	return 0;
 }
 
+// Validates function calls in expressions (existence, arity, and non-void return type)
 std::any StaticAnalysisVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx) {
 	std::string funcName = ctx->NAME()->getText();
 
@@ -339,6 +352,7 @@ std::any StaticAnalysisVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx) 
 	return 0;
 }
 
+// Validates function calls used as standalone statements
 std::any StaticAnalysisVisitor::visitFunctionCallStatement(ifccParser::FunctionCallStatementContext *ctx) {
 	std::string funcName = ctx->NAME()->getText();
 

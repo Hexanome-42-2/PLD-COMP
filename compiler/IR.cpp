@@ -1,6 +1,7 @@
 #include "IR.h"
 #include "CFG.h"
 
+// Frees all IR instructions owned by this basic block when block is destroyed.
 BasicBlock::~BasicBlock() {
     for (IRInstr* instr : instrs) {
         delete instr;
@@ -8,6 +9,7 @@ BasicBlock::~BasicBlock() {
     instrs.clear();
 }
 
+// Emits assembly for this block label and each IR instruction in order.
 void BasicBlock::gen_asm(std::ostream &output) {
     output << label << ":" << std::endl;
     for (IRInstr* instr : instrs) {
@@ -22,11 +24,13 @@ void BasicBlock::gen_asm(std::ostream &output) {
     }
 }
 
+// Appends one IR instruction node to this basic block.
 void BasicBlock::add_IRInstr(IRInstr::Operation op, Type t, std::vector<std::string> params) {
     IRInstr * aIRInstr = new IRInstr(this, op, t, params);
     instrs.push_back(aIRInstr);
 }
 	
+// Translates one IR instruction to x86 assembly
 void IRInstr::gen_asm_x86(std::ostream &output) {
     switch(this->op) {
         // todo : optimise if one of the params is a reg
@@ -58,6 +62,7 @@ void IRInstr::gen_asm_x86(std::ostream &output) {
 
         case IRInstr::Operation::div:
             output << "    movl " << bb->cfg->IR_reg_to_asm(params[0]) << ", " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
+            // x86 signed divide uses edx:eax as dividend, so cltd sign-extends eax into edx
             output << "    cltd\n";
             output << "    idivl " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
             output << "    movl " << bb->cfg->IR_reg_to_asm(kReturnReg) << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
@@ -67,6 +72,7 @@ void IRInstr::gen_asm_x86(std::ostream &output) {
             output << "    movl " << bb->cfg->IR_reg_to_asm(params[0]) << ", " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
             output << "    cltd\n";
             output << "    idivl " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
+            // Remainder comes from edx after idiv
             output << "    movl %edx, " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
             break;
 
@@ -101,6 +107,7 @@ void IRInstr::gen_asm_x86(std::ostream &output) {
 		case IRInstr::Operation::notl:
             output << "    cmpl $0, " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
             output << "	   sete	%al\n";
+            // set* only writes 8 bits, movzbl cleans upper bits to get a real 0/1 int
             output << "	   movzbl %al, " << bb->cfg->IR_reg_to_asm(kReturnReg) << "\n";
             output << "    movl " << bb->cfg->IR_reg_to_asm(kReturnReg) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
             break;
@@ -160,6 +167,7 @@ void IRInstr::gen_asm_x86(std::ostream &output) {
     }
 }
 
+// Translates one IR instruction to ARM assembly
 void IRInstr::gen_asm_arm(std::ostream &output) {
     switch(this->op) {
         case IRInstr::Operation::ldconst:
@@ -203,6 +211,7 @@ void IRInstr::gen_asm_arm(std::ostream &output) {
             output << "    ldr " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(params[0]) << "\n";
             output << "    ldr " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << ", " << bb->cfg->IR_reg_to_asm(params[1]) << "\n";
             output << "    sdiv " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << "\n";
+            // mls computes r = a - q*b (modulo) after quotient q from sdiv
             output << "    mls " << bb->cfg->IR_reg_to_asm(kScratchRegs[3]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[2]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[1]) << ", " << bb->cfg->IR_reg_to_asm(kScratchRegs[0]) << "\n";
             output << "    str " << bb->cfg->IR_reg_to_asm(kScratchRegs[3]) << ", " << bb->cfg->IR_reg_to_asm(params[2]) << "\n";
             break;

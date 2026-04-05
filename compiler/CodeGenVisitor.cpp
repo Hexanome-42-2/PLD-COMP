@@ -1,21 +1,24 @@
 #include "CodeGenVisitor.h"
 
 
+// Handles include nodes during codegen (no IR emitted, semantic pass already handled them)
 antlrcpp::Any CodeGenVisitor::visitIncludeStatement(ifccParser::IncludeStatementContext *ctx) {
 	// Do nothing
 	return 0;
 }
 
+// Entry point of codegen visitor: walks the full program AST
 antlrcpp::Any CodeGenVisitor::visitProg(ifccParser::ProgContext *ctx) {
     visitChildren(ctx);
     return 0;
 }
 
+// Ignores function declarations since only definitions generate executable IR
 antlrcpp::Any CodeGenVisitor::visitFunctionDeclaration(ifccParser::FunctionDeclarationContext *ctx) {
-	// Do nothing for declarations, definitions will generate code
 	return 0;
 }
 
+// Builds CFG + IR for one full function body and restores previous function context
 antlrcpp::Any CodeGenVisitor::visitFunctionDefinition(ifccParser::FunctionDefinitionContext *ctx) {
 	// 1. Create a new CFG for this function and add it to the map
 	std::string functionName = ctx->funcName->getText();
@@ -40,6 +43,7 @@ antlrcpp::Any CodeGenVisitor::visitFunctionDefinition(ifccParser::FunctionDefini
 				std::string paramName = paramNames[i]->getText();
 				int offset = (*functionSymbolTables)[functionName]->getVariableOffset(paramName);
 			    declaredVars.back()[paramName] = offset;
+                // ABI puts args in registers first; we immediately spill them to our local temp vars
 				currentCFG->current_bb->add_IRInstr(IRInstr::Operation::wmem, Type::INT,
 					{std::to_string(offset), kArgRegs[i]});
 			}
@@ -59,6 +63,7 @@ antlrcpp::Any CodeGenVisitor::visitFunctionDefinition(ifccParser::FunctionDefini
     return 0;
 }
 
+// Emits IR for local variable declarations and optional initializations
 antlrcpp::Any CodeGenVisitor::visitDeclareStatement(ifccParser::DeclareStatementContext *ctx) {
     for (auto Node : ctx->assignStatement()) {
         std::string varName = Node->NAME()->getText();
@@ -92,6 +97,7 @@ antlrcpp::Any CodeGenVisitor::visitDeclareStatement(ifccParser::DeclareStatement
     return 0;
 }
 
+// Emits a function call used as a statement
 antlrcpp::Any CodeGenVisitor::visitFunctionCallStatement(ifccParser::FunctionCallStatementContext *ctx) {
 	if (ctx->argument()) {
 		ifccParser::ArgumentListContext* args = dynamic_cast<ifccParser::ArgumentListContext*>(ctx->argument());
@@ -123,6 +129,7 @@ antlrcpp::Any CodeGenVisitor::visitFunctionCallStatement(ifccParser::FunctionCal
 	return ExprResult{false, -1, resVar};
 }
 
+// Emits assignment statement IR and stores computed value into target variable slot
 antlrcpp::Any CodeGenVisitor::visitAssignStatement(ifccParser::AssignStatementContext *ctx) {
 	// Visit the expression, evaluating the right side and putting the result in %eax
     ExprResult result;
@@ -146,6 +153,7 @@ antlrcpp::Any CodeGenVisitor::visitAssignStatement(ifccParser::AssignStatementCo
 	return ExprResult{false, -1, result.expr};
 }
 
+// Emits assignment-expression IR and returns assigned value for surrounding expression
 antlrcpp::Any CodeGenVisitor::visitAssignExpr(ifccParser::AssignExprContext *ctx) {
     // Visit the expression, evaluating the right side and putting the result in %eax
     ExprResult result;
@@ -167,6 +175,7 @@ antlrcpp::Any CodeGenVisitor::visitAssignExpr(ifccParser::AssignExprContext *ctx
     return ExprResult{false, -1, result.expr};
 }
 
+// Moves return expression to return register and jumps to function exit block.
 antlrcpp::Any CodeGenVisitor::visitReturnStatement(ifccParser::ReturnStatementContext *ctx) {
 	// Evaluate the result of the expression (if present — void functions have no return expr)
 	if (ctx->expr()) {
@@ -186,6 +195,7 @@ antlrcpp::Any CodeGenVisitor::visitReturnStatement(ifccParser::ReturnStatementCo
 	return 0;
 }
 
+// Lowers if/else AST into test/then/else/end basic blocks with explicit branches
 antlrcpp::Any CodeGenVisitor::visitIfStatement(ifccParser::IfStatementContext *ctx) {
     std::string statement_name = currentCFG->new_BB_name();
     BasicBlock *test_block = new BasicBlock(currentCFG, statement_name + "_test");
@@ -209,6 +219,7 @@ antlrcpp::Any CodeGenVisitor::visitIfStatement(ifccParser::IfStatementContext *c
 
     const std::string cstVar = currentCFG->create_new_tempvar(Type::INT);
     const std::string resVar = currentCFG->create_new_tempvar(Type::INT);
+    // Booleans are normalized to 0/1 in IR, so branch compares condition == 1
     test_block->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {cstVar, "1"});
     test_block->add_IRInstr(IRInstr::Operation::cmp_eq, Type::INT, {resBool.expr, cstVar, resVar});
     test_block->add_IRInstr(IRInstr::Operation::je, Type::VOID, {then_block->label});
@@ -252,6 +263,7 @@ antlrcpp::Any CodeGenVisitor::visitIfStatement(ifccParser::IfStatementContext *c
     return 0;
 }
 
+// Lowers while AST into loop test/body/end basic blocks
 antlrcpp::Any CodeGenVisitor::visitWhileStatement(ifccParser::WhileStatementContext *ctx) {
 	std::string statement_name = currentCFG->new_BB_name();
     BasicBlock *test_block = new BasicBlock(currentCFG, statement_name + "_test");
@@ -269,6 +281,7 @@ antlrcpp::Any CodeGenVisitor::visitWhileStatement(ifccParser::WhileStatementCont
     const std::string cstVar = currentCFG->create_new_tempvar(Type::INT);
     const std::string resVar = currentCFG->create_new_tempvar(Type::INT);
 
+    // Same convention as if: treat "true" as integer 1 before je/jmp split
     test_block->add_IRInstr(IRInstr::Operation::ldconst, Type::INT, {cstVar, "1"});
     test_block->add_IRInstr(IRInstr::Operation::cmp_eq, Type::INT, {resBool.expr, cstVar, resVar});
 
@@ -293,6 +306,7 @@ antlrcpp::Any CodeGenVisitor::visitWhileStatement(ifccParser::WhileStatementCont
     return 0;
 }
 
+// Switches current symbol-table scope for a block and visits contained nodes
 antlrcpp::Any CodeGenVisitor::visitBlock(ifccParser::BlockContext *ctx) {
     std::string blockName = currentCFG->getName() + "_" + std::to_string(currBlockIndex++);
     SymbolTable* blockTable = (*functionSymbolTables)[blockName];
@@ -317,6 +331,7 @@ antlrcpp::Any CodeGenVisitor::visitBlock(ifccParser::BlockContext *ctx) {
 
 // ~~~~~~~~ Expressions ~~~~~~~~
 
+// Handles unary operators (+, -, !) and constant-folds when operand is compile-time known
 antlrcpp::Any CodeGenVisitor::visitUnaryExpr(ifccParser::UnaryExprContext *ctx) {
 	ExprResult expr = std::any_cast<ExprResult>(visit(ctx->expr_unary()));
 
@@ -348,6 +363,7 @@ antlrcpp::Any CodeGenVisitor::visitUnaryExpr(ifccParser::UnaryExprContext *ctx) 
 	return expr;
 }
 
+// Emits call IR used in expressions and returns temporary holding call result
 antlrcpp::Any CodeGenVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx) {
 	if (ctx->argument()) {
 		ifccParser::ArgumentListContext* args = dynamic_cast<ifccParser::ArgumentListContext*>(ctx->argument());
@@ -379,12 +395,14 @@ antlrcpp::Any CodeGenVisitor::visitFuncCall(ifccParser::FuncCallContext *ctx) {
 	return ExprResult{false, -1, resVar};
 }
 
+// Converts integer literal node into constant expression result
 antlrcpp::Any CodeGenVisitor::visitConstExpr(ifccParser::ConstExprContext *ctx) {
 	std::string constValue = ctx->CONST()->getText();
 
     return ExprResult{true, stoi(constValue), ""};
 }
 
+// Decodes character literal and materializes it as int constant
 antlrcpp::Any CodeGenVisitor::visitCharConstExpr(ifccParser::CharConstExprContext *ctx) {
 	std::string text = ctx->CHAR_CONST()->getText(); // e.g. 'a' or '\n'
 	// Strip surrounding single quotes: text[0] == '\'' and text[last] == '\''
@@ -415,13 +433,16 @@ antlrcpp::Any CodeGenVisitor::visitCharConstExpr(ifccParser::CharConstExprContex
 	return ExprResult{true, value, tmpVar};
 }
 
+// Resolves variable reference to internal stack-slot representation used by parent ops
 antlrcpp::Any CodeGenVisitor::visitVarExpr(ifccParser::VarExprContext *ctx) {
 	std::string varName = ctx->NAME()->getText();
     int offset = resolveVarOffset(varName);
 
+    // ExprResult carries the stack slot id; load/store is emitted by parent operations
 	return ExprResult{false, -1, std::to_string(offset)};
 }
 
+// Emits add/sub IR and folds result directly when both operands are constants
 antlrcpp::Any CodeGenVisitor::visitAddSub(ifccParser::AddSubContext *ctx) {
 	ExprResult lExpr = std::any_cast<ExprResult>(visit(ctx->lExpr));
     ExprResult rExpr = std::any_cast<ExprResult>(visit(ctx->rExpr));
@@ -460,6 +481,7 @@ antlrcpp::Any CodeGenVisitor::visitAddSub(ifccParser::AddSubContext *ctx) {
 	return ExprResult{false, -1, resVar};
 }
 
+// Emits mul/div/mod IR with constant folding and simple zero multiplication optimization
 antlrcpp::Any CodeGenVisitor::visitMultDiv(ifccParser::MultDivContext *ctx) {
     ExprResult lExpr = std::any_cast<ExprResult>(visit(ctx->lExpr));
     ExprResult rExpr = std::any_cast<ExprResult>(visit(ctx->rExpr));
@@ -512,6 +534,7 @@ antlrcpp::Any CodeGenVisitor::visitMultDiv(ifccParser::MultDivContext *ctx) {
     return ExprResult{false, -1, resVar};
 }
 
+// Emits bitwise IR (&, |, ^) and constant-folds when possible
 antlrcpp::Any CodeGenVisitor::visitBitWise(ifccParser::BitWiseContext *ctx) {
     ExprResult lExpr = std::any_cast<ExprResult>(visit(ctx->lExpr));
     ExprResult rExpr = std::any_cast<ExprResult>(visit(ctx->rExpr));
@@ -556,12 +579,14 @@ antlrcpp::Any CodeGenVisitor::visitBitWise(ifccParser::BitWiseContext *ctx) {
     return ExprResult{false, -1, resVar};
 }
 
+// Parentheses just forward the inner expression result without extra IR
 antlrcpp::Any CodeGenVisitor::visitPar(ifccParser::ParContext *ctx) {
 	ExprResult expr = std::any_cast<ExprResult>(visit(ctx->expr()));
 
 	return expr;
 }
 
+// Emits relational comparison IR (<, >) and returns boolean-like int result
 antlrcpp::Any CodeGenVisitor::visitComp(ifccParser::CompContext *ctx) {
     ExprResult lExpr = std::any_cast<ExprResult>(visit(ctx->lExpr));
     ExprResult rExpr = std::any_cast<ExprResult>(visit(ctx->rExpr));
@@ -599,6 +624,7 @@ antlrcpp::Any CodeGenVisitor::visitComp(ifccParser::CompContext *ctx) {
 	return ExprResult{false, -1, resVar};
 }
 
+// Emits equality comparison IR (==, !=) and returns boolean-like int result.
 antlrcpp::Any CodeGenVisitor::visitEQ(ifccParser::EQContext *ctx) {
     ExprResult lExpr = std::any_cast<ExprResult>(visit(ctx->lExpr));
     ExprResult rExpr = std::any_cast<ExprResult>(visit(ctx->rExpr));
