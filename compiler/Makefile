@@ -75,7 +75,7 @@ gui:
 
 # Default full test suite (host/default arch)
 test: ifcc
-	python3 ../ifcc-test.py ../testfiles
+	python3 ../tests/ifcc-test.py ../tests/testfiles
 
 # Single file test: make test-file FILE=../testfiles/001_return42.c
 test-file: ifcc
@@ -83,7 +83,7 @@ test-file: ifcc
 		echo "Usage: make test-file FILE=path/to/file.c"; \
 		exit 1; \
 	fi
-	python3 ../ifcc-test.py $(FILE)
+	python3 ../tests/ifcc-test.py $(FILE)
 
 # One explicit arch: make test-arch ARCH=DEV_ARCH_ARM64
 test-arch: ifcc
@@ -91,12 +91,11 @@ test-arch: ifcc
 		echo "Usage: make test-arch ARCH=DEV_ARCH_X86_64|DEV_ARCH_ARM64"; \
 		exit 1; \
 	fi
-	python3 ../ifcc-test.py --arch $(ARCH) ../testfiles
+	python3 ../tests/ifcc-test.py --arch $(ARCH) ../tests/testfiles
 
 # Multiple archs in one go
 test-all-arch: ifcc
-	python3 ../ifcc-test.py --arch DEV_ARCH_X86_64 --arch DEV_ARCH_ARM64 ../testfiles
-
+	python3 ../tests/ifcc-test.py --arch DEV_ARCH_X86_64 --arch DEV_ARCH_ARM64 ../tests/testfiles
 ##########################################
 # delete all machine-generated files
 clean:

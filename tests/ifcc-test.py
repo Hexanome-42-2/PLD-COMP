@@ -167,7 +167,7 @@ if "ifcc-test-output" in orig_cwd:
     print('error: cannot run ifcc-test.py from within its own output directory')
     exit(1)
 
-pld_base_dir=os.path.normpath(os.path.dirname(__file__))
+pld_base_dir=os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
 if args.debug:
     print("ifcc-test.py: "+os.path.dirname(__file__))
 
