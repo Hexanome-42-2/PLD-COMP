@@ -87,8 +87,8 @@ def build_ifcc_for_default_arch(pld_base_dir: str) -> str:
 def toolchain_run_for_arch(arch: str, ifcc_path: str):
     """
     Retourne des fonctions (compile_ref, link_ref, run_ref, link_ifcc, run_ifcc) selon l'arch.
-    \- x86\\_64: gcc + exécution native
-    \- ARM: arm-linux-gnueabi-gcc + qemu-arm
+    - x86\\_64: gcc + exécution native
+    - ARM: arm-linux-gnueabi-gcc + qemu-arm
     """
     if is_arm_arch(arch):
         cc = "arm-linux-gnueabi-gcc -mcpu=cortex-a15"
@@ -415,3 +415,6 @@ for arch_name, ifcc_path in ifcc_bins:
 
 if not (overall_ok or args.verbose):
     print("Some test-cases failed. Run ifcc-test.py with option '--verbose' for more detailed feedback.")
+
+if not overall_ok:
+    exit(1)
